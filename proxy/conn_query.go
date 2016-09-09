@@ -24,7 +24,8 @@ func (c *Conn) handleQuery(sql string) (err error) {
 	var stmt sqlparser.Statement
 	stmt, err = sqlparser.Parse(sql)
 	if err != nil {
-		return fmt.Errorf(`parse sql "%s" error`, sql)
+		r := c.handleUnknown(sql, nil)
+		return r
 	}
 
 	switch v := stmt.(type) {
@@ -123,7 +124,20 @@ func (c *Conn) getConn(n *Node, isSelect bool) (co *client.SqlConn, err error) {
 	return
 }
 
-func (c *Conn) getShardConns(isSelect bool,stmt sqlparser.Statement, bindVars map[string]interface{}) ([]*client.SqlConn, error) {
+func (c *Conn) getDefaultConn(isSelect bool) (*client.SqlConn, error) {
+	n := c.schema.nodes["node1"]
+
+	var co *client.SqlConn
+	var err error
+	co, err = c.getConn(n, isSelect)
+	if err != nil {
+		return nil, err
+	}
+
+	return co, err
+}
+
+func (c *Conn) getShardConns(isSelect bool, stmt sqlparser.Statement, bindVars map[string]interface{}) ([]*client.SqlConn, error) {
 	nodes, err := c.getShardList(stmt, bindVars)
 	if err != nil {
 		return nil, err
@@ -233,10 +247,29 @@ func makeBindVars(args []interface{}) map[string]interface{} {
 	return bindVars
 }
 
+func (c *Conn) handleUnknown(sql string, args []interface{}) error {
+	co, err := c.getDefaultConn(true)
+	if err != nil {
+		return err
+	}
+
+	var r *Result
+	r, err = co.Execute(sql, args...)
+	co.Close()
+	if err != nil {
+		return err
+	}
+	if r == nil {
+		return nil
+	}
+
+	return c.writeResultset(r.Status, r.Resultset)
+}
+
 func (c *Conn) handleSelect(stmt *sqlparser.Select, sql string, args []interface{}) error {
 	bindVars := makeBindVars(args)
 
-	conns, err := c.getShardConns(true,stmt, bindVars)
+	conns, err := c.getShardConns(true, stmt, bindVars)
 	if err != nil {
 		return err
 	} else if conns == nil {
@@ -288,7 +321,7 @@ func (c *Conn) commitShardConns(conns []*client.SqlConn) error {
 func (c *Conn) handleExec(stmt sqlparser.Statement, sql string, args []interface{}) error {
 	bindVars := makeBindVars(args)
 
-	conns, err := c.getShardConns(false,stmt, bindVars)
+	conns, err := c.getShardConns(false, stmt, bindVars)
 	if err != nil {
 		return err
 	} else if conns == nil {
