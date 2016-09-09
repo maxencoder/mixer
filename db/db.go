@@ -1,9 +1,10 @@
-package client
+package db
 
 import (
 	"container/list"
 	"fmt"
 	. "github.com/maxencoder/mixer/mysql"
+	"github.com/siddontang/go-mysql/client"
 	"sync"
 	"sync/atomic"
 )
@@ -51,7 +52,7 @@ func (db *DB) Close() error {
 	for {
 		if db.idleConns.Len() > 0 {
 			v := db.idleConns.Back()
-			co := v.Value.(*Conn)
+			co := v.Value.(*client.Conn)
 			db.idleConns.Remove(v)
 
 			co.Close()
@@ -89,17 +90,16 @@ func (db *DB) GetConnNum() int {
 	return int(db.connNum)
 }
 
-func (db *DB) newConn() (*Conn, error) {
-	co := new(Conn)
-
-	if err := co.Connect(db.addr, db.user, db.password, db.db); err != nil {
+func (db *DB) newConn() (*client.Conn, error) {
+	co, err := client.Connect(db.addr, db.user, db.password, db.db)
+	if err != nil {
 		return nil, err
 	}
 
 	return co, nil
 }
 
-func (db *DB) tryReuse(co *Conn) error {
+func (db *DB) tryReuse(co *client.Conn) error {
 	if co.IsInTransaction() {
 		//we can not reuse a connection in transaction status
 		if err := co.Rollback(); err != nil {
@@ -109,7 +109,7 @@ func (db *DB) tryReuse(co *Conn) error {
 
 	if !co.IsAutoCommit() {
 		//we can not  reuse a connection not in autocomit
-		if _, err := co.exec("set autocommit = 1"); err != nil {
+		if _, err := co.Execute("set autocommit = 1"); err != nil {
 			return err
 		}
 	}
@@ -125,11 +125,11 @@ func (db *DB) tryReuse(co *Conn) error {
 	return nil
 }
 
-func (db *DB) PopConn() (co *Conn, err error) {
+func (db *DB) PopConn() (co *client.Conn, err error) {
 	db.Lock()
 	if db.idleConns.Len() > 0 {
 		v := db.idleConns.Front()
-		co = v.Value.(*Conn)
+		co = v.Value.(*client.Conn)
 		db.idleConns.Remove(v)
 	}
 	db.Unlock()
@@ -151,8 +151,8 @@ func (db *DB) PopConn() (co *Conn, err error) {
 	return
 }
 
-func (db *DB) PushConn(co *Conn, err error) {
-	var closeConn *Conn = nil
+func (db *DB) PushConn(co *client.Conn, err error) {
+	var closeConn *client.Conn = nil
 
 	if err != nil {
 		closeConn = co
@@ -162,7 +162,7 @@ func (db *DB) PushConn(co *Conn, err error) {
 
 			if db.idleConns.Len() >= db.maxIdleConns {
 				v := db.idleConns.Front()
-				closeConn = v.Value.(*Conn)
+				closeConn = v.Value.(*client.Conn)
 				db.idleConns.Remove(v)
 			}
 
@@ -173,7 +173,6 @@ func (db *DB) PushConn(co *Conn, err error) {
 		} else {
 			closeConn = co
 		}
-
 	}
 
 	if closeConn != nil {
@@ -184,14 +183,17 @@ func (db *DB) PushConn(co *Conn, err error) {
 }
 
 type SqlConn struct {
-	*Conn
+	*client.Conn
 
 	db *DB
 }
 
+// XXX we should not always push err=nil; old driver used to track err
+// state. PushConn decides wheather to close a conn based on it's err status.
+// Change API to Close(err) or two discinct functions.
 func (p *SqlConn) Close() {
 	if p.Conn != nil {
-		p.db.PushConn(p.Conn, p.Conn.pkgErr)
+		p.db.PushConn(p.Conn, nil)
 		p.Conn = nil
 	}
 }

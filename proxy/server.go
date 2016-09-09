@@ -1,8 +1,8 @@
 package proxy
 
 import (
-	"github.com/siddontang/go-log/log"
 	"github.com/maxencoder/mixer/config"
+	"github.com/siddontang/go-log/log"
 
 	"net"
 	"runtime"

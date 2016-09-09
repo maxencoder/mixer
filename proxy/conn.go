@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/siddontang/go-log/log"
-	"github.com/maxencoder/mixer/client"
+	"github.com/maxencoder/mixer/db"
 	"github.com/maxencoder/mixer/hack"
 	. "github.com/maxencoder/mixer/mysql"
+	"github.com/siddontang/go-log/log"
 	"net"
 	"runtime"
 	"sync"
@@ -43,7 +43,7 @@ type Conn struct {
 
 	schema *Schema
 
-	txConns map[*Node]*client.SqlConn
+	txConns map[*Node]*db.SqlConn
 
 	closed bool
 
@@ -75,7 +75,7 @@ func (s *Server) newConn(co net.Conn) *Conn {
 
 	c.salt = RandomBuf(20)
 
-	c.txConns = make(map[*Node]*client.SqlConn)
+	c.txConns = make(map[*Node]*db.SqlConn)
 
 	c.closed = false
 

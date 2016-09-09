@@ -2,10 +2,10 @@ package proxy
 
 import (
 	"fmt"
-	"github.com/siddontang/go-log/log"
 	"github.com/maxencoder/mixer/hack"
 	. "github.com/maxencoder/mixer/mysql"
 	"github.com/maxencoder/mixer/sqlparser"
+	"github.com/siddontang/go-log/log"
 	"sort"
 	"strings"
 	"time"

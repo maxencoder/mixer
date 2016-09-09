@@ -1,8 +1,9 @@
 package proxy
 
 import (
-	"github.com/maxencoder/mixer/client"
 	"github.com/maxencoder/mixer/config"
+	"github.com/maxencoder/mixer/db"
+	"github.com/siddontang/go-mysql/client"
 	"sync"
 	"testing"
 	"time"
@@ -107,7 +108,7 @@ func newTestDB(t *testing.T) *client.DB {
 	return testDB
 }
 
-func newTestDBConn(t *testing.T) *client.SqlConn {
+func newTestDBConn(t *testing.T) *db.SqlConn {
 	db := newTestDB(t)
 
 	c, err := db.GetConn()

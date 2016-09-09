@@ -1,8 +1,8 @@
 package router
 
 import (
-	"github.com/siddontang/go-yaml/yaml"
 	"github.com/maxencoder/mixer/config"
+	"github.com/siddontang/go-yaml/yaml"
 	"testing"
 )
 
