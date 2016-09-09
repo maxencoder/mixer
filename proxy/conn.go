@@ -177,8 +177,16 @@ func (c *Conn) readPacket() ([]byte, error) {
 	return c.pkg.ReadPacket()
 }
 
+func (c *Conn) flushWrites() error {
+	return c.pkg.FlushWrites()
+}
+
 func (c *Conn) writePacket(data []byte) error {
 	return c.pkg.WritePacket(data)
+}
+
+func (c *Conn) writePacketBuffered(data []byte) error {
+	return c.pkg.WritePacketBuffered(data)
 }
 
 func (c *Conn) readHandshakeResponse() error {

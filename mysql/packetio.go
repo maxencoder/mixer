@@ -9,7 +9,7 @@ import (
 
 type PacketIO struct {
 	rb *bufio.Reader
-	wb io.Writer
+	wb *bufio.Writer
 
 	Sequence uint8
 }
@@ -18,11 +18,15 @@ func NewPacketIO(conn net.Conn) *PacketIO {
 	p := new(PacketIO)
 
 	p.rb = bufio.NewReaderSize(conn, 1024)
-	p.wb = conn
+	p.wb = bufio.NewWriterSize(conn, 1024)
 
 	p.Sequence = 0
 
 	return p
+}
+
+func (p *PacketIO) FlushWrites() error {
+	return p.wb.Flush()
 }
 
 func (p *PacketIO) ReadPacket() ([]byte, error) {
@@ -63,8 +67,16 @@ func (p *PacketIO) ReadPacket() ([]byte, error) {
 	}
 }
 
-//data already have header
 func (p *PacketIO) WritePacket(data []byte) error {
+	if err := p.WritePacketBuffered(data); err != nil {
+		return err
+	}
+
+	return p.FlushWrites()
+}
+
+//data already have header
+func (p *PacketIO) WritePacketBuffered(data []byte) error {
 	length := len(data) - 4
 
 	for length >= MaxPayloadLen {

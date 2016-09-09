@@ -108,14 +108,14 @@ func (c *Conn) writeResultset(status uint16, r *Resultset) error {
 	data := make([]byte, 4, 1024)
 
 	data = append(data, columnLen...)
-	if err := c.writePacket(data); err != nil {
+	if err := c.writePacketBuffered(data); err != nil {
 		return err
 	}
 
 	for _, v := range r.Fields {
 		data = data[0:4]
 		data = append(data, v.Dump()...)
-		if err := c.writePacket(data); err != nil {
+		if err := c.writePacketBuffered(data); err != nil {
 			return err
 		}
 	}
@@ -127,9 +127,13 @@ func (c *Conn) writeResultset(status uint16, r *Resultset) error {
 	for _, v := range r.RowDatas {
 		data = data[0:4]
 		data = append(data, v...)
-		if err := c.writePacket(data); err != nil {
+		if err := c.writePacketBuffered(data); err != nil {
 			return err
 		}
+	}
+
+	if err := c.flushWrites(); err != nil {
+		return err
 	}
 
 	if err := c.writeEOF(status); err != nil {
