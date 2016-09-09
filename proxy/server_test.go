@@ -1,8 +1,8 @@
 package proxy
 
 import (
-	"github.com/siddontang/mixer/client"
-	"github.com/siddontang/mixer/config"
+	"github.com/maxencoder/mixer/client"
+	"github.com/maxencoder/mixer/config"
 	"sync"
 	"testing"
 	"time"

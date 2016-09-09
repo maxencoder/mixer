@@ -2,7 +2,7 @@ package router
 
 import (
 	"fmt"
-	"github.com/siddontang/mixer/config"
+	"github.com/maxencoder/mixer/config"
 	"regexp"
 	"strconv"
 	"strings"

@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"github.com/siddontang/go-log/log"
-	"github.com/siddontang/mixer/config"
-	"github.com/siddontang/mixer/proxy"
+	"github.com/maxencoder/mixer/config"
+	"github.com/maxencoder/mixer/proxy"
 	"os"
 	"os/signal"
 	"runtime"

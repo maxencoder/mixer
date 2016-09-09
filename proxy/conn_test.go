@@ -1,7 +1,7 @@
 package proxy
 
 import (
-	. "github.com/siddontang/mixer/mysql"
+	. "github.com/maxencoder/mixer/mysql"
 	"testing"
 )
 

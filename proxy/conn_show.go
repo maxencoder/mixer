@@ -3,9 +3,9 @@ package proxy
 import (
 	"fmt"
 	"github.com/siddontang/go-log/log"
-	"github.com/siddontang/mixer/hack"
-	. "github.com/siddontang/mixer/mysql"
-	"github.com/siddontang/mixer/sqlparser"
+	"github.com/maxencoder/mixer/hack"
+	. "github.com/maxencoder/mixer/mysql"
+	"github.com/maxencoder/mixer/sqlparser"
 	"sort"
 	"strings"
 	"time"

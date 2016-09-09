@@ -3,7 +3,7 @@ package mysql
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/siddontang/mixer/hack"
+	"github.com/maxencoder/mixer/hack"
 	"math"
 	"strconv"
 )

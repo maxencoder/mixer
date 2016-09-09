@@ -3,7 +3,7 @@ package mysql
 import (
 	"bytes"
 	"fmt"
-	"github.com/siddontang/mixer/hack"
+	"github.com/maxencoder/mixer/hack"
 	"sort"
 )
 

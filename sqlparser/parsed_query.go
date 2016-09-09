@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/siddontang/mixer/sqltypes"
+	"github.com/maxencoder/mixer/sqltypes"
 )
 
 type BindLocation struct {

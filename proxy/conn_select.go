@@ -3,8 +3,8 @@ package proxy
 import (
 	"bytes"
 	"fmt"
-	. "github.com/siddontang/mixer/mysql"
-	"github.com/siddontang/mixer/sqlparser"
+	. "github.com/maxencoder/mixer/mysql"
+	"github.com/maxencoder/mixer/sqlparser"
 	"strings"
 )
 

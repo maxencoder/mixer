@@ -7,7 +7,7 @@ package sqlparser
 import (
 	"errors"
 
-	"github.com/siddontang/mixer/sqltypes"
+	"github.com/maxencoder/mixer/sqltypes"
 )
 
 // Instructions for creating new types: If a type

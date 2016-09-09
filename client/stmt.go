@@ -3,7 +3,7 @@ package client
 import (
 	"encoding/binary"
 	"fmt"
-	. "github.com/siddontang/mixer/mysql"
+	. "github.com/maxencoder/mixer/mysql"
 	"math"
 )
 
