@@ -2,13 +2,15 @@ package proxy
 
 import (
 	"fmt"
-	"github.com/maxencoder/mixer/db"
-	"github.com/maxencoder/mixer/hack"
-	. "github.com/siddontang/go-mysql/mysql"
-	"github.com/maxencoder/mixer/sqlparser"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/maxencoder/mixer/db"
+	"github.com/maxencoder/mixer/hack"
+	"github.com/maxencoder/mixer/sqlparser"
+	. "github.com/siddontang/go-mysql/mysql"
 )
 
 func (c *Conn) handleQuery(sql string) (err error) {
@@ -421,7 +423,12 @@ func (c *Conn) sortSelectResult(r *Resultset, stmt *sqlparser.Select) error {
 		sk[i].Direction = o.Direction
 	}
 
-	return r.Sort(sk)
+	s, err := newResultsetSorter(r, sk)
+	if err != nil {
+		return err
+	}
+	sort.Sort(s)
+	return nil
 }
 
 func (c *Conn) limitSelectResult(r *Resultset, stmt *sqlparser.Select) error {

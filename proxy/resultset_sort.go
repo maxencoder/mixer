@@ -1,10 +1,11 @@
-package mysql
+package proxy
 
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/maxencoder/mixer/hack"
-	"sort"
+	. "github.com/siddontang/go-mysql/mysql"
 )
 
 const (
@@ -127,16 +128,4 @@ func (r *resultsetSorter) Swap(i, j int) {
 	r.Values[i], r.Values[j] = r.Values[j], r.Values[i]
 
 	r.RowDatas[i], r.RowDatas[j] = r.RowDatas[j], r.RowDatas[i]
-}
-
-func (r *Resultset) Sort(sk []SortKey) error {
-	s, err := newResultsetSorter(r, sk)
-
-	if err != nil {
-		return err
-	}
-
-	sort.Sort(s)
-
-	return nil
 }
