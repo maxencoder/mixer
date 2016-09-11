@@ -7,6 +7,7 @@ import (
 	"github.com/maxencoder/mixer/db"
 	"github.com/maxencoder/mixer/hack"
 	. "github.com/siddontang/go-mysql/mysql"
+	"github.com/siddontang/go-mysql/packet"
 	"github.com/siddontang/go-log/log"
 	"net"
 	"runtime"
@@ -22,7 +23,7 @@ var DEFAULT_CAPABILITY uint32 = CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG |
 type Conn struct {
 	sync.Mutex
 
-	pkg *PacketIO
+	pkg *packet.Conn
 
 	c net.Conn
 
@@ -33,7 +34,6 @@ type Conn struct {
 	connectionId uint32
 
 	status    uint16
-	collation CollationId
 	charset   string
 
 	user string
@@ -62,7 +62,7 @@ func (s *Server) newConn(co net.Conn) *Conn {
 
 	c.c = co
 
-	c.pkg = NewPacketIO(co)
+	c.pkg = packet.NewConn(co)
 
 	c.server = s
 
@@ -79,7 +79,6 @@ func (s *Server) newConn(co net.Conn) *Conn {
 
 	c.closed = false
 
-	c.collation = DEFAULT_COLLATION_ID
 	c.charset = DEFAULT_CHARSET
 
 	c.stmtId = 0
