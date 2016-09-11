@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"github.com/maxencoder/mixer/db"
 	"github.com/maxencoder/mixer/hack"
+	"github.com/siddontang/go-log/log"
 	. "github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/packet"
-	"github.com/siddontang/go-log/log"
 	"net"
 	"runtime"
 	"sync"
@@ -33,8 +33,8 @@ type Conn struct {
 
 	connectionId uint32
 
-	status    uint16
-	charset   string
+	status  uint16
+	charset string
 
 	user string
 	db   string

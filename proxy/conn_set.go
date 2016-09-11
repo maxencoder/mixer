@@ -2,8 +2,8 @@ package proxy
 
 import (
 	"fmt"
-	. "github.com/siddontang/go-mysql/mysql"
 	"github.com/maxencoder/mixer/sqlparser"
+	. "github.com/siddontang/go-mysql/mysql"
 	"strings"
 )
 

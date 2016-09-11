@@ -3,8 +3,8 @@ package db
 import (
 	"container/list"
 	"fmt"
-	. "github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/client"
+	. "github.com/siddontang/go-mysql/mysql"
 	"sync"
 	"sync/atomic"
 )

@@ -3,8 +3,8 @@ package proxy
 import (
 	"encoding/binary"
 	"fmt"
-	. "github.com/siddontang/go-mysql/mysql"
 	"github.com/maxencoder/mixer/sqlparser"
+	. "github.com/siddontang/go-mysql/mysql"
 	"math"
 	"strconv"
 	"strings"
