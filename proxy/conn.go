@@ -73,7 +73,7 @@ func (s *Server) newConn(co net.Conn) *Conn {
 
 	c.status = SERVER_STATUS_AUTOCOMMIT
 
-	c.salt = RandomBuf(20)
+	c.salt, _ = RandomBuf(20)
 
 	c.txConns = make(map[*Node]*db.SqlConn)
 
@@ -340,9 +340,9 @@ func (c *Conn) writeOK(r *Result) error {
 }
 
 func (c *Conn) writeError(e error) error {
-	var m *SqlError
+	var m *MyError
 	var ok bool
-	if m, ok = e.(*SqlError); !ok {
+	if m, ok = e.(*MyError); !ok {
 		m = NewError(ER_UNKNOWN_ERROR, e.Error())
 	}
 
