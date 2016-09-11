@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/maxencoder/mixer/db"
 	"github.com/maxencoder/mixer/hack"
-	. "github.com/maxencoder/mixer/mysql"
+	. "github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-log/log"
 	"net"
 	"runtime"

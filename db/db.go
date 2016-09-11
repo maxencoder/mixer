@@ -3,7 +3,7 @@ package db
 import (
 	"container/list"
 	"fmt"
-	. "github.com/maxencoder/mixer/mysql"
+	. "github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/client"
 	"sync"
 	"sync/atomic"

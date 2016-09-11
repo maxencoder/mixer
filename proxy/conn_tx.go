@@ -2,7 +2,7 @@ package proxy
 
 import (
 	"github.com/maxencoder/mixer/db"
-	. "github.com/maxencoder/mixer/mysql"
+	. "github.com/siddontang/go-mysql/mysql"
 )
 
 func (c *Conn) isInTransaction() bool {

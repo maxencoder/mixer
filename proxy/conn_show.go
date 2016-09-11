@@ -3,7 +3,7 @@ package proxy
 import (
 	"fmt"
 	"github.com/maxencoder/mixer/hack"
-	. "github.com/maxencoder/mixer/mysql"
+	. "github.com/siddontang/go-mysql/mysql"
 	"github.com/maxencoder/mixer/sqlparser"
 	"github.com/siddontang/go-log/log"
 	"sort"

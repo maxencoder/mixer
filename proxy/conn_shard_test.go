@@ -2,7 +2,7 @@ package proxy
 
 import (
 	"fmt"
-	"github.com/maxencoder/mixer/mysql"
+	"github.com/siddontang/go-mysql/mysql"
 	"reflect"
 	"testing"
 )
