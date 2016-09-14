@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"github.com/siddontang/go-log/log"
 	"github.com/maxencoder/mixer/config"
 	"github.com/maxencoder/mixer/proxy"
+	"github.com/siddontang/go-log/log"
 	"os"
 	"os/signal"
 	"runtime"

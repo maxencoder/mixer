@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/siddontang/go-log/log"
-	"github.com/maxencoder/mixer/client"
+	"github.com/maxencoder/mixer/db"
 	"github.com/maxencoder/mixer/hack"
-	. "github.com/maxencoder/mixer/mysql"
+	"github.com/siddontang/go-log/log"
+	. "github.com/siddontang/go-mysql/mysql"
+	"github.com/siddontang/go-mysql/packet"
 	"net"
 	"runtime"
 	"sync"
@@ -22,7 +23,7 @@ var DEFAULT_CAPABILITY uint32 = CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG |
 type Conn struct {
 	sync.Mutex
 
-	pkg *PacketIO
+	pkg *packet.Conn
 
 	c net.Conn
 
@@ -32,9 +33,8 @@ type Conn struct {
 
 	connectionId uint32
 
-	status    uint16
-	collation CollationId
-	charset   string
+	status  uint16
+	charset string
 
 	user string
 	db   string
@@ -43,7 +43,7 @@ type Conn struct {
 
 	schema *Schema
 
-	txConns map[*Node]*client.SqlConn
+	txConns map[*Node]*db.SqlConn
 
 	closed bool
 
@@ -62,7 +62,7 @@ func (s *Server) newConn(co net.Conn) *Conn {
 
 	c.c = co
 
-	c.pkg = NewPacketIO(co)
+	c.pkg = packet.NewConn(co)
 
 	c.server = s
 
@@ -73,13 +73,12 @@ func (s *Server) newConn(co net.Conn) *Conn {
 
 	c.status = SERVER_STATUS_AUTOCOMMIT
 
-	c.salt = RandomBuf(20)
+	c.salt, _ = RandomBuf(20)
 
-	c.txConns = make(map[*Node]*client.SqlConn)
+	c.txConns = make(map[*Node]*db.SqlConn)
 
 	c.closed = false
 
-	c.collation = DEFAULT_COLLATION_ID
 	c.charset = DEFAULT_CHARSET
 
 	c.stmtId = 0
@@ -341,9 +340,9 @@ func (c *Conn) writeOK(r *Result) error {
 }
 
 func (c *Conn) writeError(e error) error {
-	var m *SqlError
+	var m *MyError
 	var ok bool
-	if m, ok = e.(*SqlError); !ok {
+	if m, ok = e.(*MyError); !ok {
 		m = NewError(ER_UNKNOWN_ERROR, e.Error())
 	}
 

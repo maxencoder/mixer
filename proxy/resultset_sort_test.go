@@ -1,10 +1,12 @@
-package mysql
+package proxy
 
 import (
 	"fmt"
 	"reflect"
 	"sort"
 	"testing"
+
+	. "github.com/siddontang/go-mysql/mysql"
 )
 
 func TestResultsetSort(t *testing.T) {

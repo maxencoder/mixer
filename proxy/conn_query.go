@@ -2,13 +2,15 @@ package proxy
 
 import (
 	"fmt"
-	"github.com/maxencoder/mixer/client"
-	"github.com/maxencoder/mixer/hack"
-	. "github.com/maxencoder/mixer/mysql"
-	"github.com/maxencoder/mixer/sqlparser"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/maxencoder/mixer/db"
+	"github.com/maxencoder/mixer/hack"
+	"github.com/maxencoder/mixer/sqlparser"
+	. "github.com/siddontang/go-mysql/mysql"
 )
 
 func (c *Conn) handleQuery(sql string) (err error) {
@@ -81,7 +83,7 @@ func (c *Conn) getShardList(stmt sqlparser.Statement, bindVars map[string]interf
 	return n, nil
 }
 
-func (c *Conn) getConn(n *Node, isSelect bool) (co *client.SqlConn, err error) {
+func (c *Conn) getConn(n *Node, isSelect bool) (co *db.SqlConn, err error) {
 	if !c.needBeginTx() {
 		if isSelect {
 			co, err = n.getSelectConn()
@@ -124,10 +126,10 @@ func (c *Conn) getConn(n *Node, isSelect bool) (co *client.SqlConn, err error) {
 	return
 }
 
-func (c *Conn) getDefaultConn(isSelect bool) (*client.SqlConn, error) {
+func (c *Conn) getDefaultConn(isSelect bool) (*db.SqlConn, error) {
 	n := c.schema.nodes["node1"]
 
-	var co *client.SqlConn
+	var co *db.SqlConn
 	var err error
 	co, err = c.getConn(n, isSelect)
 	if err != nil {
@@ -137,7 +139,7 @@ func (c *Conn) getDefaultConn(isSelect bool) (*client.SqlConn, error) {
 	return co, err
 }
 
-func (c *Conn) getShardConns(isSelect bool, stmt sqlparser.Statement, bindVars map[string]interface{}) ([]*client.SqlConn, error) {
+func (c *Conn) getShardConns(isSelect bool, stmt sqlparser.Statement, bindVars map[string]interface{}) ([]*db.SqlConn, error) {
 	nodes, err := c.getShardList(stmt, bindVars)
 	if err != nil {
 		return nil, err
@@ -145,9 +147,9 @@ func (c *Conn) getShardConns(isSelect bool, stmt sqlparser.Statement, bindVars m
 		return nil, nil
 	}
 
-	conns := make([]*client.SqlConn, 0, len(nodes))
+	conns := make([]*db.SqlConn, 0, len(nodes))
 
-	var co *client.SqlConn
+	var co *db.SqlConn
 	for _, n := range nodes {
 		co, err = c.getConn(n, isSelect)
 		if err != nil {
@@ -160,13 +162,13 @@ func (c *Conn) getShardConns(isSelect bool, stmt sqlparser.Statement, bindVars m
 	return conns, err
 }
 
-func (c *Conn) executeInShard(conns []*client.SqlConn, sql string, args []interface{}) ([]*Result, error) {
+func (c *Conn) executeInShard(conns []*db.SqlConn, sql string, args []interface{}) ([]*Result, error) {
 	var wg sync.WaitGroup
 	wg.Add(len(conns))
 
 	rs := make([]interface{}, len(conns))
 
-	f := func(rs []interface{}, i int, co *client.SqlConn) {
+	f := func(rs []interface{}, i int, co *db.SqlConn) {
 		r, err := co.Execute(sql, args...)
 		if err != nil {
 			rs[i] = err
@@ -196,7 +198,7 @@ func (c *Conn) executeInShard(conns []*client.SqlConn, sql string, args []interf
 	return r, err
 }
 
-func (c *Conn) closeShardConns(conns []*client.SqlConn, rollback bool) {
+func (c *Conn) closeShardConns(conns []*db.SqlConn, rollback bool) {
 	if c.isInTransaction() {
 		return
 	}
@@ -290,7 +292,7 @@ func (c *Conn) handleSelect(stmt *sqlparser.Select, sql string, args []interface
 	return err
 }
 
-func (c *Conn) beginShardConns(conns []*client.SqlConn) error {
+func (c *Conn) beginShardConns(conns []*db.SqlConn) error {
 	if c.isInTransaction() {
 		return nil
 	}
@@ -304,7 +306,7 @@ func (c *Conn) beginShardConns(conns []*client.SqlConn) error {
 	return nil
 }
 
-func (c *Conn) commitShardConns(conns []*client.SqlConn) error {
+func (c *Conn) commitShardConns(conns []*db.SqlConn) error {
 	if c.isInTransaction() {
 		return nil
 	}
@@ -421,7 +423,12 @@ func (c *Conn) sortSelectResult(r *Resultset, stmt *sqlparser.Select) error {
 		sk[i].Direction = o.Direction
 	}
 
-	return r.Sort(sk)
+	s, err := newResultsetSorter(r, sk)
+	if err != nil {
+		return err
+	}
+	sort.Sort(s)
+	return nil
 }
 
 func (c *Conn) limitSelectResult(r *Resultset, stmt *sqlparser.Select) error {

@@ -2,8 +2,8 @@ package proxy
 
 import (
 	"fmt"
-	. "github.com/maxencoder/mixer/mysql"
 	"github.com/maxencoder/mixer/sqlparser"
+	. "github.com/siddontang/go-mysql/mysql"
 	"strings"
 )
 
@@ -50,13 +50,7 @@ func (c *Conn) handleSetNames(val sqlparser.ValExpr) error {
 	}
 
 	charset := strings.ToLower(string(value))
-	cid, ok := CharsetIds[charset]
-	if !ok {
-		return fmt.Errorf("invalid charset %s", charset)
-	}
-
 	c.charset = charset
-	c.collation = cid
 
 	return c.writeOK(nil)
 }
