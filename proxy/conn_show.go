@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func (c *Conn) handleShow(sql string, stmt *sqlparser.Show) error {
+func (c *Conn) handleShow(sql string, stmt *sqlparser.Show) (*Result, error) {
 	var err error
 	var r *Resultset
 	switch strings.ToLower(stmt.Section) {
@@ -26,10 +26,10 @@ func (c *Conn) handleShow(sql string, stmt *sqlparser.Show) error {
 	}
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return c.writeResultset(c.status, r)
+	return &Result{Status: c.status, Resultset: r}, nil
 }
 
 func (c *Conn) handleShowDatabases() (*Resultset, error) {

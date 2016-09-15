@@ -13,7 +13,7 @@ import (
 	. "github.com/siddontang/go-mysql/mysql"
 )
 
-func (c *Conn) handleQuery(sql string) (err error) {
+func (c *Conn) handleQuery(sql string) (r *Result, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = fmt.Errorf("execute %s error %v", sql, e)
@@ -24,42 +24,42 @@ func (c *Conn) handleQuery(sql string) (err error) {
 	sql = strings.TrimRight(sql, ";")
 
 	var stmt sqlparser.Statement
+
 	stmt, err = sqlparser.Parse(sql)
 	if err != nil {
-		r := c.handleUnknown(sql, nil)
-		return r
+		return c.handleUnknown(sql, nil)
 	}
 
 	switch v := stmt.(type) {
 	case *sqlparser.Select:
-		return c.handleSelect(v, sql, nil)
+		r, err = c.handleSelect(v, sql, nil)
 	case *sqlparser.Insert:
-		return c.handleExec(stmt, sql, nil)
+		r, err = c.handleExec(stmt, sql, nil)
 	case *sqlparser.Update:
-		return c.handleExec(stmt, sql, nil)
+		r, err = c.handleExec(stmt, sql, nil)
 	case *sqlparser.Delete:
-		return c.handleExec(stmt, sql, nil)
+		r, err = c.handleExec(stmt, sql, nil)
 	case *sqlparser.Replace:
-		return c.handleExec(stmt, sql, nil)
+		r, err = c.handleExec(stmt, sql, nil)
 	case *sqlparser.Set:
-		return c.handleSet(v)
+		err = c.handleSet(v)
 	case *sqlparser.Begin:
-		return c.handleBegin()
+		err = c.handleBegin()
 	case *sqlparser.Commit:
-		return c.handleCommit()
+		err = c.handleCommit()
 	case *sqlparser.Rollback:
-		return c.handleRollback()
+		err = c.handleRollback()
 	case *sqlparser.SimpleSelect:
-		return c.handleSimpleSelect(sql, v)
+		r, err = c.handleSimpleSelect(sql, v)
 	case *sqlparser.Show:
-		return c.handleShow(sql, v)
+		r, err = c.handleShow(sql, v)
 	case *sqlparser.Admin:
-		return c.handleAdmin(v)
+		r, err = c.handleAdmin(v)
 	default:
-		return fmt.Errorf("statement %T not support now", stmt)
+		err = fmt.Errorf("statement %T not support now", stmt)
 	}
 
-	return nil
+	return
 }
 
 func (c *Conn) getShardList(stmt sqlparser.Statement, bindVars map[string]interface{}) ([]*Node, error) {
@@ -212,6 +212,17 @@ func (c *Conn) closeShardConns(conns []*db.SqlConn, rollback bool) {
 	}
 }
 
+func (c *Conn) newEmptyResult(stmt *sqlparser.Select) *Result {
+	rs := c.newEmptyResultset(stmt)
+
+	r := new(Result)
+
+	r.Resultset = rs
+	r.Status = c.status
+
+	return r
+}
+
 func (c *Conn) newEmptyResultset(stmt *sqlparser.Select) *Resultset {
 	r := new(Resultset)
 	r.Fields = make([]*Field, len(stmt.SelectExprs))
@@ -249,34 +260,28 @@ func makeBindVars(args []interface{}) map[string]interface{} {
 	return bindVars
 }
 
-func (c *Conn) handleUnknown(sql string, args []interface{}) error {
+func (c *Conn) handleUnknown(sql string, args []interface{}) (*Result, error) {
 	co, err := c.getDefaultConn(true)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var r *Result
+
 	r, err = co.Execute(sql, args...)
 	co.Close()
-	if err != nil {
-		return err
-	}
-	if r == nil {
-		return nil
-	}
 
-	return c.writeResultset(r.Status, r.Resultset)
+	return r, err
 }
 
-func (c *Conn) handleSelect(stmt *sqlparser.Select, sql string, args []interface{}) error {
+func (c *Conn) handleSelect(stmt *sqlparser.Select, sql string, args []interface{}) (*Result, error) {
 	bindVars := makeBindVars(args)
 
 	conns, err := c.getShardConns(true, stmt, bindVars)
 	if err != nil {
-		return err
+		return nil, err
 	} else if conns == nil {
-		r := c.newEmptyResultset(stmt)
-		return c.writeResultset(c.status, r)
+		return c.newEmptyResult(stmt), nil
 	}
 
 	var rs []*Result
@@ -285,11 +290,11 @@ func (c *Conn) handleSelect(stmt *sqlparser.Select, sql string, args []interface
 
 	c.closeShardConns(conns, false)
 
-	if err == nil {
-		err = c.mergeSelectResult(rs, stmt)
+	if err != nil {
+		return nil, err
 	}
 
-	return err
+	return c.mergeSelectResult(rs, stmt)
 }
 
 func (c *Conn) beginShardConns(conns []*db.SqlConn) error {
@@ -320,14 +325,14 @@ func (c *Conn) commitShardConns(conns []*db.SqlConn) error {
 	return nil
 }
 
-func (c *Conn) handleExec(stmt sqlparser.Statement, sql string, args []interface{}) error {
+func (c *Conn) handleExec(stmt sqlparser.Statement, sql string, args []interface{}) (*Result, error) {
 	bindVars := makeBindVars(args)
 
 	conns, err := c.getShardConns(false, stmt, bindVars)
 	if err != nil {
-		return err
+		return nil, err
 	} else if conns == nil {
-		return c.writeOK(nil)
+		return nil, nil
 	}
 
 	var rs []*Result
@@ -353,14 +358,14 @@ func (c *Conn) handleExec(stmt sqlparser.Statement, sql string, args []interface
 
 	c.closeShardConns(conns, err != nil)
 
-	if err == nil {
-		err = c.mergeExecResult(rs)
+	if err != nil {
+		return nil, err
 	}
 
-	return err
+	return c.mergeExecResult(rs), nil
 }
 
-func (c *Conn) mergeExecResult(rs []*Result) error {
+func (c *Conn) mergeExecResult(rs []*Result) *Result {
 	r := new(Result)
 
 	for _, v := range rs {
@@ -381,34 +386,35 @@ func (c *Conn) mergeExecResult(rs []*Result) error {
 
 	c.affectedRows = int64(r.AffectedRows)
 
-	return c.writeOK(r)
+	return r
 }
 
-func (c *Conn) mergeSelectResult(rs []*Result, stmt *sqlparser.Select) error {
-	r := rs[0].Resultset
+func (c *Conn) mergeSelectResult(rs []*Result, stmt *sqlparser.Select) (*Result, error) {
+	r := rs[0]
+	s := r.Resultset
 
-	status := c.status | rs[0].Status
+	r.Status |= c.status
 
 	for i := 1; i < len(rs); i++ {
-		status |= rs[i].Status
+		r.Status |= rs[i].Status
 
 		//check fields equal
 
 		for j := range rs[i].Values {
-			r.Values = append(r.Values, rs[i].Values[j])
-			r.RowDatas = append(r.RowDatas, rs[i].RowDatas[j])
+			s.Values = append(s.Values, rs[i].Values[j])
+			s.RowDatas = append(s.RowDatas, rs[i].RowDatas[j])
 		}
 	}
 
 	//to do order by, group by, limit offset
-	c.sortSelectResult(r, stmt)
+	c.sortSelectResult(s, stmt)
 	//to do, add log here, sort may error because order by key not exist in resultset fields
 
-	if err := c.limitSelectResult(r, stmt); err != nil {
-		return err
+	if err := c.limitSelectResult(s, stmt); err != nil {
+		return nil, err
 	}
 
-	return c.writeResultset(status, r)
+	return r, nil
 }
 
 func (c *Conn) sortSelectResult(r *Resultset, stmt *sqlparser.Select) error {

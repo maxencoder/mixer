@@ -15,26 +15,11 @@ func (c *Conn) isAutoCommit() bool {
 
 func (c *Conn) handleBegin() error {
 	c.status |= SERVER_STATUS_IN_TRANS
-	return c.writeOK(nil)
+
+	return nil
 }
 
 func (c *Conn) handleCommit() (err error) {
-	if err := c.commit(); err != nil {
-		return err
-	} else {
-		return c.writeOK(nil)
-	}
-}
-
-func (c *Conn) handleRollback() (err error) {
-	if err := c.rollback(); err != nil {
-		return err
-	} else {
-		return c.writeOK(nil)
-	}
-}
-
-func (c *Conn) commit() (err error) {
 	c.status &= ^SERVER_STATUS_IN_TRANS
 
 	for _, co := range c.txConns {
@@ -47,6 +32,10 @@ func (c *Conn) commit() (err error) {
 	c.txConns = map[*Node]*db.SqlConn{}
 
 	return
+}
+
+func (c *Conn) handleRollback() error {
+	return c.rollback()
 }
 
 func (c *Conn) rollback() (err error) {

@@ -2,28 +2,27 @@ package proxy
 
 import (
 	"fmt"
-	"github.com/maxencoder/mixer/sqlparser"
 	"strings"
+
+	"github.com/maxencoder/mixer/sqlparser"
+	. "github.com/siddontang/go-mysql/mysql"
 )
 
-func (c *Conn) handleAdmin(admin *sqlparser.Admin) error {
+func (c *Conn) handleAdmin(admin *sqlparser.Admin) (*Result, error) {
 	name := string(admin.Name)
 
 	var err error
+
 	switch strings.ToLower(name) {
 	case "upnode":
 		err = c.adminUpNodeServer(admin.Values)
 	case "downnode":
 		err = c.adminDownNodeServer(admin.Values)
 	default:
-		return fmt.Errorf("admin %s not supported now", name)
+		return nil, fmt.Errorf("admin %s not supported now", name)
 	}
 
-	if err != nil {
-		return err
-	}
-
-	return c.writeOK(nil)
+	return nil, err
 }
 
 func (c *Conn) adminUpNodeServer(values sqlparser.ValExprs) error {
