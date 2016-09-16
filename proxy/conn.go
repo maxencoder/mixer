@@ -50,7 +50,7 @@ func (s *Server) newConn(co net.Conn) (c *Conn, err error) {
 
 	c.server = s
 
-	//c.status = SERVER_STATUS_AUTOCOMMIT // don't see this in new code?
+	c.status = SERVER_STATUS_AUTOCOMMIT
 
 	c.txConns = make(map[*Node]*db.SqlConn)
 
