@@ -40,7 +40,7 @@ func (c *Conn) handleSetAutoCommit(val sqlparser.ValExpr) error {
 		return fmt.Errorf("invalid autocommit flag %s", value)
 	}
 
-	return c.writeOK(nil)
+	return nil
 }
 
 func (c *Conn) handleSetNames(val sqlparser.ValExpr) error {
@@ -52,5 +52,5 @@ func (c *Conn) handleSetNames(val sqlparser.ValExpr) error {
 	charset := strings.ToLower(string(value))
 	c.charset = charset
 
-	return c.writeOK(nil)
+	return nil
 }
