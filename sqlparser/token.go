@@ -26,6 +26,7 @@ type Tokenizer struct {
 	LastError     string
 	posVarIndex   int
 	ParseTree     Statement
+	nesting       int
 }
 
 // NewStringTokenizer creates a new Tokenizer for the

@@ -683,8 +683,8 @@ func TestErrors(t *testing.T) {
 		input:  "select 'aa",
 		output: "syntax error at position 12 near 'aa'",
 	}, {
-		input:  "select * from t where :1 = 2",
-		output: "syntax error at position 24 near ':'",
+		input:  "select * from t where = 2",
+		output: "syntax error at position 24",
 	}, {
 		input:  "select * from t where :. = 2",
 		output: "syntax error at position 24 near ':'",
