@@ -5,9 +5,10 @@
 package sqlparser
 
 import (
-	"github.com/maxencoder/mixer/router"
 	"sort"
 	"strconv"
+
+	"github.com/maxencoder/mixer/router"
 )
 
 const (
