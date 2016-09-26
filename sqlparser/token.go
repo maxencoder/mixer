@@ -143,7 +143,7 @@ func (tkn *Tokenizer) Lex(lval *yySymType) int {
 func (tkn *Tokenizer) Error(err string) {
 	buf := bytes.NewBuffer(make([]byte, 0, 32))
 	if tkn.errorToken != nil {
-		fmt.Fprintf(buf, "%s at position %v near %s", err, tkn.Position, tkn.errorToken)
+		fmt.Fprintf(buf, "%s at position %v near '%s'", err, tkn.Position, tkn.errorToken)
 	} else {
 		fmt.Fprintf(buf, "%s at position %v", err, tkn.Position)
 	}
