@@ -6,6 +6,9 @@ package sqlparser
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/maxencoder/mixer/sqltypes"
 )
@@ -41,7 +44,7 @@ type SQLNode interface {
 // String returns a string representation of an SQLNode.
 func String(node SQLNode) string {
 	buf := NewTrackedBuffer(nil)
-	buf.Fprintf("%v", node)
+	buf.Myprintf("%v", node)
 	return buf.String()
 }
 
@@ -58,6 +61,7 @@ func (*Update) IStatement() {}
 func (*Delete) IStatement() {}
 func (*Set) IStatement()    {}
 func (*DDL) IStatement()    {}
+func (*Other) IStatement()  {}
 
 // SelectStatement any SELECT statement.
 type SelectStatement interface {
@@ -96,7 +100,7 @@ const (
 )
 
 func (node *Select) Format(buf *TrackedBuffer) {
-	buf.Fprintf("select %v%s%v from %v%v%v%v%v%v%s",
+	buf.Myprintf("select %v%s%v from %v%v%v%v%v%v%s",
 		node.Comments, node.Distinct, node.SelectExprs,
 		node.From, node.Where,
 		node.GroupBy, node.Having, node.OrderBy,
@@ -119,7 +123,7 @@ const (
 )
 
 func (node *Union) Format(buf *TrackedBuffer) {
-	buf.Fprintf("%v %s %v", node.Left, node.Type, node.Right)
+	buf.Myprintf("%v %s %v", node.Left, node.Type, node.Right)
 }
 
 // Insert represents an INSERT statement.
@@ -132,7 +136,7 @@ type Insert struct {
 }
 
 func (node *Insert) Format(buf *TrackedBuffer) {
-	buf.Fprintf("insert %vinto %v%v %v%v",
+	buf.Myprintf("insert %vinto %v%v %v%v",
 		node.Comments,
 		node.Table, node.Columns, node.Rows, node.OnDup)
 }
@@ -158,7 +162,7 @@ type Update struct {
 }
 
 func (node *Update) Format(buf *TrackedBuffer) {
-	buf.Fprintf("update %v%v set %v%v%v%v",
+	buf.Myprintf("update %v%v set %v%v%v%v",
 		node.Comments, node.Table,
 		node.Exprs, node.Where, node.OrderBy, node.Limit)
 }
@@ -173,7 +177,7 @@ type Delete struct {
 }
 
 func (node *Delete) Format(buf *TrackedBuffer) {
-	buf.Fprintf("delete %vfrom %v%v%v%v",
+	buf.Myprintf("delete %vfrom %v%v%v%v",
 		node.Comments,
 		node.Table, node.Where, node.OrderBy, node.Limit)
 }
@@ -185,7 +189,7 @@ type Set struct {
 }
 
 func (node *Set) Format(buf *TrackedBuffer) {
-	buf.Fprintf("set %v%v", node.Comments, node.Exprs)
+	buf.Myprintf("set %v%v", node.Comments, node.Exprs)
 }
 
 // DDL represents a CREATE, ALTER, DROP or RENAME statement.
@@ -193,8 +197,8 @@ func (node *Set) Format(buf *TrackedBuffer) {
 // NewName is set for AST_ALTER, AST_CREATE, AST_RENAME.
 type DDL struct {
 	Action  string
-	Table   []byte
-	NewName []byte
+	Table   TableID
+	NewName TableID
 }
 
 const (
@@ -207,12 +211,21 @@ const (
 func (node *DDL) Format(buf *TrackedBuffer) {
 	switch node.Action {
 	case AST_CREATE:
-		buf.Fprintf("%s table %s", node.Action, node.NewName)
+		buf.Myprintf("%s table %v", node.Action, node.NewName)
 	case AST_RENAME:
-		buf.Fprintf("%s table %s %s", node.Action, node.Table, node.NewName)
+		buf.Myprintf("%s table %v %v", node.Action, node.Table, node.NewName)
 	default:
-		buf.Fprintf("%s table %s", node.Action, node.Table)
+		buf.Myprintf("%s table %v", node.Action, node.Table)
 	}
+}
+
+// Other represents a SHOW, DESCRIBE, or EXPLAIN statement.
+// It should be used only as an indicator. It does not contain
+// the full AST for the statement.
+type Other struct{}
+
+func (node *Other) Format(buf *TrackedBuffer) {
+	buf.WriteString("other")
 }
 
 // Comments represents a list of comments.
@@ -220,7 +233,7 @@ type Comments [][]byte
 
 func (node Comments) Format(buf *TrackedBuffer) {
 	for _, c := range node {
-		buf.Fprintf("%s ", c)
+		buf.Myprintf("%s ", c)
 	}
 }
 
@@ -230,7 +243,7 @@ type SelectExprs []SelectExpr
 func (node SelectExprs) Format(buf *TrackedBuffer) {
 	var prefix string
 	for _, n := range node {
-		buf.Fprintf("%s%v", prefix, n)
+		buf.Myprintf("%s%v", prefix, n)
 		prefix = ", "
 	}
 }
@@ -246,26 +259,26 @@ func (*NonStarExpr) ISelectExpr() {}
 
 // StarExpr defines a '*' or 'table.*' expression.
 type StarExpr struct {
-	TableName []byte
+	TableName TableID
 }
 
 func (node *StarExpr) Format(buf *TrackedBuffer) {
-	if node.TableName != nil {
-		buf.Fprintf("%s.", node.TableName)
+	if node.TableName != "" {
+		buf.Myprintf("%v.", node.TableName)
 	}
-	buf.Fprintf("*")
+	buf.Myprintf("*")
 }
 
 // NonStarExpr defines a non-'*' select expr.
 type NonStarExpr struct {
 	Expr Expr
-	As   []byte
+	As   SQLName
 }
 
 func (node *NonStarExpr) Format(buf *TrackedBuffer) {
-	buf.Fprintf("%v", node.Expr)
-	if node.As != nil {
-		buf.Fprintf(" as %s", node.As)
+	buf.Myprintf("%v", node.Expr)
+	if node.As != "" {
+		buf.Myprintf(" as %v", node.As)
 	}
 }
 
@@ -279,7 +292,7 @@ func (node Columns) Format(buf *TrackedBuffer) {
 	if node == nil {
 		return
 	}
-	buf.Fprintf("(%v)", SelectExprs(node))
+	buf.Myprintf("(%v)", SelectExprs(node))
 }
 
 // TableExprs represents a list of table expressions.
@@ -288,7 +301,7 @@ type TableExprs []TableExpr
 func (node TableExprs) Format(buf *TrackedBuffer) {
 	var prefix string
 	for _, n := range node {
-		buf.Fprintf("%s%v", prefix, n)
+		buf.Myprintf("%s%v", prefix, n)
 		prefix = ", "
 	}
 }
@@ -307,18 +320,18 @@ func (*JoinTableExpr) ITableExpr()    {}
 // coupled with an optional alias or index hint.
 type AliasedTableExpr struct {
 	Expr  SimpleTableExpr
-	As    []byte
+	As    TableID
 	Hints *IndexHints
 }
 
 func (node *AliasedTableExpr) Format(buf *TrackedBuffer) {
-	buf.Fprintf("%v", node.Expr)
-	if node.As != nil {
-		buf.Fprintf(" as %s", node.As)
+	buf.Myprintf("%v", node.Expr)
+	if node.As != "" {
+		buf.Myprintf(" as %v", node.As)
 	}
 	if node.Hints != nil {
 		// Hint node provides the space padding.
-		buf.Fprintf("%v", node.Hints)
+		buf.Myprintf("%v", node.Hints)
 	}
 }
 
@@ -333,15 +346,14 @@ func (*Subquery) ISimpleTableExpr()  {}
 
 // TableName represents a table  name.
 type TableName struct {
-	Name, Qualifier []byte
+	Name, Qualifier TableID
 }
 
 func (node *TableName) Format(buf *TrackedBuffer) {
-	if node.Qualifier != nil {
-		escape(buf, node.Qualifier)
-		buf.Fprintf(".")
+	if node.Qualifier != "" {
+		buf.Myprintf("%v.", node.Qualifier)
 	}
-	escape(buf, node.Name)
+	buf.Myprintf("%v", node.Name)
 }
 
 // ParenTableExpr represents a parenthesized TableExpr.
@@ -350,7 +362,7 @@ type ParenTableExpr struct {
 }
 
 func (node *ParenTableExpr) Format(buf *TrackedBuffer) {
-	buf.Fprintf("(%v)", node.Expr)
+	buf.Myprintf("(%v)", node.Expr)
 }
 
 // JoinTableExpr represents a TableExpr that's a JOIN operation.
@@ -372,16 +384,16 @@ const (
 )
 
 func (node *JoinTableExpr) Format(buf *TrackedBuffer) {
-	buf.Fprintf("%v %s %v", node.LeftExpr, node.Join, node.RightExpr)
+	buf.Myprintf("%v %s %v", node.LeftExpr, node.Join, node.RightExpr)
 	if node.On != nil {
-		buf.Fprintf(" on %v", node.On)
+		buf.Myprintf(" on %v", node.On)
 	}
 }
 
 // IndexHints represents a list of index hints.
 type IndexHints struct {
 	Type    string
-	Indexes [][]byte
+	Indexes []SQLName
 }
 
 const (
@@ -391,13 +403,13 @@ const (
 )
 
 func (node *IndexHints) Format(buf *TrackedBuffer) {
-	buf.Fprintf(" %s index ", node.Type)
+	buf.Myprintf(" %s index ", node.Type)
 	prefix := "("
 	for _, n := range node.Indexes {
-		buf.Fprintf("%s%s", prefix, n)
+		buf.Myprintf("%s%v", prefix, n)
 		prefix = ", "
 	}
-	buf.Fprintf(")")
+	buf.Myprintf(")")
 }
 
 // Where represents a WHERE or HAVING clause.
@@ -422,10 +434,10 @@ func NewWhere(typ string, expr BoolExpr) *Where {
 }
 
 func (node *Where) Format(buf *TrackedBuffer) {
-	if node == nil {
+	if node == nil || node.Expr == nil {
 		return
 	}
-	buf.Fprintf(" %s %v", node.Type, node.Expr)
+	buf.Myprintf(" %s %v", node.Type, node.Expr)
 }
 
 // Expr represents an expression.
@@ -442,6 +454,7 @@ func (*ComparisonExpr) IExpr() {}
 func (*RangeCond) IExpr()      {}
 func (*NullCheck) IExpr()      {}
 func (*ExistsExpr) IExpr()     {}
+func (*KeyrangeExpr) IExpr()   {}
 func (StrVal) IExpr()          {}
 func (NumVal) IExpr()          {}
 func (ValArg) IExpr()          {}
@@ -449,6 +462,7 @@ func (*NullVal) IExpr()        {}
 func (*ColName) IExpr()        {}
 func (ValTuple) IExpr()        {}
 func (*Subquery) IExpr()       {}
+func (ListArg) IExpr()         {}
 func (*BinaryExpr) IExpr()     {}
 func (*UnaryExpr) IExpr()      {}
 func (*FuncExpr) IExpr()       {}
@@ -468,6 +482,7 @@ func (*ComparisonExpr) IBoolExpr() {}
 func (*RangeCond) IBoolExpr()      {}
 func (*NullCheck) IBoolExpr()      {}
 func (*ExistsExpr) IBoolExpr()     {}
+func (*KeyrangeExpr) IBoolExpr()   {}
 
 // AndExpr represents an AND expression.
 type AndExpr struct {
@@ -475,7 +490,7 @@ type AndExpr struct {
 }
 
 func (node *AndExpr) Format(buf *TrackedBuffer) {
-	buf.Fprintf("%v and %v", node.Left, node.Right)
+	buf.Myprintf("%v and %v", node.Left, node.Right)
 }
 
 // OrExpr represents an OR expression.
@@ -484,7 +499,7 @@ type OrExpr struct {
 }
 
 func (node *OrExpr) Format(buf *TrackedBuffer) {
-	buf.Fprintf("%v or %v", node.Left, node.Right)
+	buf.Myprintf("%v or %v", node.Left, node.Right)
 }
 
 // NotExpr represents a NOT expression.
@@ -493,7 +508,7 @@ type NotExpr struct {
 }
 
 func (node *NotExpr) Format(buf *TrackedBuffer) {
-	buf.Fprintf("not %v", node.Expr)
+	buf.Myprintf("not %v", node.Expr)
 }
 
 // ParenBoolExpr represents a parenthesized boolean expression.
@@ -502,7 +517,7 @@ type ParenBoolExpr struct {
 }
 
 func (node *ParenBoolExpr) Format(buf *TrackedBuffer) {
-	buf.Fprintf("(%v)", node.Expr)
+	buf.Myprintf("(%v)", node.Expr)
 }
 
 // ComparisonExpr represents a two-value comparison expression.
@@ -527,7 +542,7 @@ const (
 )
 
 func (node *ComparisonExpr) Format(buf *TrackedBuffer) {
-	buf.Fprintf("%v %s %v", node.Left, node.Operator, node.Right)
+	buf.Myprintf("%v %s %v", node.Left, node.Operator, node.Right)
 }
 
 // RangeCond represents a BETWEEN or a NOT BETWEEN expression.
@@ -544,7 +559,7 @@ const (
 )
 
 func (node *RangeCond) Format(buf *TrackedBuffer) {
-	buf.Fprintf("%v %s %v and %v", node.Left, node.Operator, node.From, node.To)
+	buf.Myprintf("%v %s %v and %v", node.Left, node.Operator, node.From, node.To)
 }
 
 // NullCheck represents an IS NULL or an IS NOT NULL expression.
@@ -560,7 +575,7 @@ const (
 )
 
 func (node *NullCheck) Format(buf *TrackedBuffer) {
-	buf.Fprintf("%v %s", node.Expr, node.Operator)
+	buf.Myprintf("%v %s", node.Expr, node.Operator)
 }
 
 // ExistsExpr represents an EXISTS expression.
@@ -569,7 +584,16 @@ type ExistsExpr struct {
 }
 
 func (node *ExistsExpr) Format(buf *TrackedBuffer) {
-	buf.Fprintf("exists %v", node.Subquery)
+	buf.Myprintf("exists %v", node.Subquery)
+}
+
+// KeyrangeExpr represents a KEYRANGE expression.
+type KeyrangeExpr struct {
+	Start, End ValExpr
+}
+
+func (node *KeyrangeExpr) Format(buf *TrackedBuffer) {
+	buf.Myprintf("keyrange(%v, %v)", node.Start, node.End)
 }
 
 // ValExpr represents a value expression.
@@ -585,6 +609,7 @@ func (*NullVal) IValExpr()    {}
 func (*ColName) IValExpr()    {}
 func (ValTuple) IValExpr()    {}
 func (*Subquery) IValExpr()   {}
+func (ListArg) IValExpr()     {}
 func (*BinaryExpr) IValExpr() {}
 func (*UnaryExpr) IValExpr()  {}
 func (*FuncExpr) IValExpr()   {}
@@ -602,58 +627,52 @@ func (node StrVal) Format(buf *TrackedBuffer) {
 type NumVal []byte
 
 func (node NumVal) Format(buf *TrackedBuffer) {
-	buf.Fprintf("%s", []byte(node))
+	buf.Myprintf("%s", []byte(node))
 }
 
 // ValArg represents a named bind var argument.
 type ValArg []byte
 
 func (node ValArg) Format(buf *TrackedBuffer) {
-	buf.WriteArg(string(node[1:]))
+	buf.WriteArg(string(node))
 }
 
 // NullVal represents a NULL value.
 type NullVal struct{}
 
 func (node *NullVal) Format(buf *TrackedBuffer) {
-	buf.Fprintf("null")
+	buf.Myprintf("null")
 }
 
 // ColName represents a column name.
 type ColName struct {
-	Name, Qualifier []byte
+	Name      SQLName
+	Qualifier TableID
 }
 
 func (node *ColName) Format(buf *TrackedBuffer) {
-	if node.Qualifier != nil {
-		escape(buf, node.Qualifier)
-		buf.Fprintf(".")
+	if node.Qualifier != "" {
+		buf.Myprintf("%v.", node.Qualifier)
 	}
-	escape(buf, node.Name)
+	buf.Myprintf("%v", node.Name)
 }
 
-func escape(buf *TrackedBuffer, name []byte) {
-	if _, ok := keywords[string(name)]; ok {
-		buf.Fprintf("`%s`", name)
-	} else {
-		buf.Fprintf("%s", name)
-	}
-}
-
-// Tuple represents a tuple. It can be ValTuple, Subquery.
-type Tuple interface {
-	ITuple()
+// ColTuple represents a list of column values.
+// It can be ValTuple, Subquery, ListArg.
+type ColTuple interface {
+	IColTuple()
 	ValExpr
 }
 
-func (ValTuple) ITuple()  {}
-func (*Subquery) ITuple() {}
+func (ValTuple) IColTuple()  {}
+func (*Subquery) IColTuple() {}
+func (ListArg) IColTuple()   {}
 
 // ValTuple represents a tuple of actual values.
 type ValTuple ValExprs
 
 func (node ValTuple) Format(buf *TrackedBuffer) {
-	buf.Fprintf("(%v)", ValExprs(node))
+	buf.Myprintf("(%v)", ValExprs(node))
 }
 
 // ValExprs represents a list of value expressions.
@@ -663,7 +682,7 @@ type ValExprs []ValExpr
 func (node ValExprs) Format(buf *TrackedBuffer) {
 	var prefix string
 	for _, n := range node {
-		buf.Fprintf("%s%v", prefix, n)
+		buf.Myprintf("%s%v", prefix, n)
 		prefix = ", "
 	}
 }
@@ -674,7 +693,14 @@ type Subquery struct {
 }
 
 func (node *Subquery) Format(buf *TrackedBuffer) {
-	buf.Fprintf("(%v)", node.Select)
+	buf.Myprintf("(%v)", node.Select)
+}
+
+// ListArg represents a named list argument.
+type ListArg []byte
+
+func (node ListArg) Format(buf *TrackedBuffer) {
+	buf.WriteArg(string(node))
 }
 
 // BinaryExpr represents a binary value expression.
@@ -696,7 +722,7 @@ const (
 )
 
 func (node *BinaryExpr) Format(buf *TrackedBuffer) {
-	buf.Fprintf("%v %c %v", node.Left, node.Operator, node.Right)
+	buf.Myprintf("%v %c %v", node.Left, node.Operator, node.Right)
 }
 
 // UnaryExpr represents a unary value expression.
@@ -714,14 +740,15 @@ const (
 
 func (node *UnaryExpr) Format(buf *TrackedBuffer) {
 	if _, unary := node.Expr.(*UnaryExpr); unary {
-		buf.Fprintf("%c %v", node.Operator, node.Expr)
+		buf.Myprintf("%c %v", node.Operator, node.Expr)
+		return
 	}
-	buf.Fprintf("%c%v", node.Operator, node.Expr)
+	buf.Myprintf("%c%v", node.Operator, node.Expr)
 }
 
 // FuncExpr represents a function call.
 type FuncExpr struct {
-	Name     []byte
+	Name     string
 	Distinct bool
 	Exprs    SelectExprs
 }
@@ -731,7 +758,31 @@ func (node *FuncExpr) Format(buf *TrackedBuffer) {
 	if node.Distinct {
 		distinct = "distinct "
 	}
-	buf.Fprintf("%s(%s%v)", node.Name, distinct, node.Exprs)
+	buf.Myprintf("%s(%s%v)", node.Name, distinct, node.Exprs)
+}
+
+// Aggregates is a map of all aggregate functions.
+var Aggregates = map[string]bool{
+	"avg":          true,
+	"bit_and":      true,
+	"bit_or":       true,
+	"bit_xor":      true,
+	"count":        true,
+	"group_concat": true,
+	"max":          true,
+	"min":          true,
+	"std":          true,
+	"stddev_pop":   true,
+	"stddev_samp":  true,
+	"stddev":       true,
+	"sum":          true,
+	"var_pop":      true,
+	"var_samp":     true,
+	"variance":     true,
+}
+
+func (node *FuncExpr) IsAggregate() bool {
+	return Aggregates[string(node.Name)]
 }
 
 // CaseExpr represents a CASE expression.
@@ -742,17 +793,17 @@ type CaseExpr struct {
 }
 
 func (node *CaseExpr) Format(buf *TrackedBuffer) {
-	buf.Fprintf("case ")
+	buf.Myprintf("case ")
 	if node.Expr != nil {
-		buf.Fprintf("%v ", node.Expr)
+		buf.Myprintf("%v ", node.Expr)
 	}
 	for _, when := range node.Whens {
-		buf.Fprintf("%v ", when)
+		buf.Myprintf("%v ", when)
 	}
 	if node.Else != nil {
-		buf.Fprintf("else %v ", node.Else)
+		buf.Myprintf("else %v ", node.Else)
 	}
-	buf.Fprintf("end")
+	buf.Myprintf("end")
 }
 
 // When represents a WHEN sub-expression.
@@ -762,18 +813,7 @@ type When struct {
 }
 
 func (node *When) Format(buf *TrackedBuffer) {
-	buf.Fprintf("when %v then %v", node.Cond, node.Val)
-}
-
-// Values represents a VALUES clause.
-type Values []Tuple
-
-func (node Values) Format(buf *TrackedBuffer) {
-	prefix := "values "
-	for _, n := range node {
-		buf.Fprintf("%s%v", prefix, n)
-		prefix = ", "
-	}
+	buf.Myprintf("when %v then %v", node.Cond, node.Val)
 }
 
 // GroupBy represents a GROUP BY clause.
@@ -782,7 +822,7 @@ type GroupBy []ValExpr
 func (node GroupBy) Format(buf *TrackedBuffer) {
 	prefix := " group by "
 	for _, n := range node {
-		buf.Fprintf("%s%v", prefix, n)
+		buf.Myprintf("%s%v", prefix, n)
 		prefix = ", "
 	}
 }
@@ -793,7 +833,7 @@ type OrderBy []*Order
 func (node OrderBy) Format(buf *TrackedBuffer) {
 	prefix := " order by "
 	for _, n := range node {
-		buf.Fprintf("%s%v", prefix, n)
+		buf.Myprintf("%s%v", prefix, n)
 		prefix = ", "
 	}
 }
@@ -811,7 +851,7 @@ const (
 )
 
 func (node *Order) Format(buf *TrackedBuffer) {
-	buf.Fprintf("%v %s", node.Expr, node.Direction)
+	buf.Myprintf("%v %s", node.Expr, node.Direction)
 }
 
 // Limit represents a LIMIT clause.
@@ -823,12 +863,75 @@ func (node *Limit) Format(buf *TrackedBuffer) {
 	if node == nil {
 		return
 	}
-	buf.Fprintf(" limit ")
+	buf.Myprintf(" limit ")
 	if node.Offset != nil {
-		buf.Fprintf("%v, ", node.Offset)
+		buf.Myprintf("%v, ", node.Offset)
 	}
-	buf.Fprintf("%v", node.Rowcount)
+	buf.Myprintf("%v", node.Rowcount)
 }
+
+// Limits returns the values of the LIMIT clause as interfaces.
+// The returned values can be nil for absent field, string for
+// bind variable names, or int64 for an actual number.
+// Otherwise, it's an error.
+func (node *Limit) Limits() (offset, rowcount interface{}, err error) {
+	if node == nil {
+		return nil, nil, nil
+	}
+	switch v := node.Offset.(type) {
+	case NumVal:
+		o, err := strconv.ParseInt(string(v), 0, 64)
+		if err != nil {
+			return nil, nil, err
+		}
+		if o < 0 {
+			return nil, nil, fmt.Errorf("negative offset: %d", o)
+		}
+		offset = o
+	case ValArg:
+		offset = string(v)
+	case nil:
+		// pass
+	default:
+		return nil, nil, fmt.Errorf("unexpected node for offset: %+v", v)
+	}
+	switch v := node.Rowcount.(type) {
+	case NumVal:
+		rc, err := strconv.ParseInt(string(v), 0, 64)
+		if err != nil {
+			return nil, nil, err
+		}
+		if rc < 0 {
+			return nil, nil, fmt.Errorf("negative limit: %d", rc)
+		}
+		rowcount = rc
+	case ValArg:
+		rowcount = string(v)
+	default:
+		return nil, nil, fmt.Errorf("unexpected node for rowcount: %+v", v)
+	}
+	return offset, rowcount, nil
+}
+
+// Values represents a VALUES clause.
+type Values []RowTuple
+
+func (node Values) Format(buf *TrackedBuffer) {
+	prefix := "values "
+	for _, n := range node {
+		buf.Myprintf("%s%v", prefix, n)
+		prefix = ", "
+	}
+}
+
+// RowTuple represents a row of values. It can be ValTuple, Subquery.
+type RowTuple interface {
+	IRowTuple()
+	ValExpr
+}
+
+func (ValTuple) IRowTuple()  {}
+func (*Subquery) IRowTuple() {}
 
 // UpdateExprs represents a list of update expressions.
 type UpdateExprs []*UpdateExpr
@@ -836,7 +939,7 @@ type UpdateExprs []*UpdateExpr
 func (node UpdateExprs) Format(buf *TrackedBuffer) {
 	var prefix string
 	for _, n := range node {
-		buf.Fprintf("%s%v", prefix, n)
+		buf.Myprintf("%s%v", prefix, n)
 		prefix = ", "
 	}
 }
@@ -848,7 +951,7 @@ type UpdateExpr struct {
 }
 
 func (node *UpdateExpr) Format(buf *TrackedBuffer) {
-	buf.Fprintf("%v = %v", node.Name, node.Expr)
+	buf.Myprintf("%v = %v", node.Name, node.Expr)
 }
 
 // OnDup represents an ON DUPLICATE KEY clause.
@@ -858,7 +961,7 @@ func (node OnDup) Format(buf *TrackedBuffer) {
 	if node == nil {
 		return
 	}
-	buf.Fprintf(" on duplicate key update %v", UpdateExprs(node))
+	buf.Myprintf(" on duplicate key update %v", UpdateExprs(node))
 }
 
 func (*Begin) IStatement()    {}
@@ -869,21 +972,21 @@ type Begin struct {
 }
 
 func (node *Begin) Format(buf *TrackedBuffer) {
-	buf.Fprintf("begin")
+	buf.Myprintf("begin")
 }
 
 type Commit struct {
 }
 
 func (node *Commit) Format(buf *TrackedBuffer) {
-	buf.Fprintf("commit")
+	buf.Myprintf("commit")
 }
 
 type Rollback struct {
 }
 
 func (node *Rollback) Format(buf *TrackedBuffer) {
-	buf.Fprintf("rollback")
+	buf.Myprintf("rollback")
 }
 
 // Replace represents an REPLACE statement.
@@ -895,7 +998,7 @@ type Replace struct {
 }
 
 func (node *Replace) Format(buf *TrackedBuffer) {
-	buf.Fprintf("replace %vinto %v%v %v%v",
+	buf.Myprintf("replace %vinto %v%v %v%v",
 		node.Comments,
 		node.Table, node.Columns, node.Rows)
 }
@@ -909,7 +1012,7 @@ type SimpleSelect struct {
 }
 
 func (node *SimpleSelect) Format(buf *TrackedBuffer) {
-	buf.Fprintf("select %v%s%v", node.Comments, node.Distinct, node.SelectExprs)
+	buf.Myprintf("select %v%s%v", node.Comments, node.Distinct, node.SelectExprs)
 }
 
 func (*SimpleSelect) IStatement()       {}
@@ -917,14 +1020,14 @@ func (*SimpleSelect) ISelectStatement() {}
 func (*SimpleSelect) IInsertRows()      {}
 
 type Admin struct {
-	Name   []byte
+	Name   SQLName
 	Values ValExprs
 }
 
 func (*Admin) IStatement() {}
 
 func (node *Admin) Format(buf *TrackedBuffer) {
-	buf.Fprintf("admin %s(%v)", node.Name, node.Values)
+	buf.Myprintf("admin %s(%v)", node.Name, node.Values)
 }
 
 type Show struct {
@@ -937,5 +1040,25 @@ type Show struct {
 func (*Show) IStatement() {}
 
 func (node *Show) Format(buf *TrackedBuffer) {
-	buf.Fprintf("show %s %s %v %v", node.Section, node.Key, node.From, node.LikeOrWhere)
+	buf.Myprintf("show %s %s %v %v", node.Section, node.Key, node.From, node.LikeOrWhere)
+}
+
+type TableID string
+
+func (node TableID) Format(buf *TrackedBuffer) {
+	if _, ok := keywords[strings.ToLower(string(node))]; ok {
+		buf.Myprintf("`%s`", string(node))
+		return
+	}
+	buf.Myprintf("%s", string(node))
+}
+
+type SQLName string
+
+func (node SQLName) Format(buf *TrackedBuffer) {
+	if _, ok := keywords[string(node)]; ok {
+		buf.Myprintf("`%s`", string(node))
+		return
+	}
+	buf.Myprintf("%s", string(node))
 }

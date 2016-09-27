@@ -5,6 +5,7 @@
 package sqlparser
 
 import (
+	"fmt"
 	"sort"
 	"strconv"
 
@@ -521,4 +522,24 @@ func differentList(l1 []int, l2 []int) []int {
 	}
 
 	return l3
+}
+
+// ParserError: To be deprecated.
+// TODO(sougou): deprecate.
+type ParserError struct {
+	Message string
+}
+
+func NewParserError(format string, args ...interface{}) ParserError {
+	return ParserError{fmt.Sprintf(format, args...)}
+}
+
+func (err ParserError) Error() string {
+	return err.Message
+}
+
+func handleError(err *error) {
+	if x := recover(); x != nil {
+		*err = x.(error)
+	}
 }

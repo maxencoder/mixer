@@ -35,7 +35,7 @@ func GetDBName(sql string) (string, error) {
 // GetTableName returns the table name from the SimpleTableExpr
 // only if it's a simple expression. Otherwise, it returns "".
 func GetTableName(node SimpleTableExpr) string {
-	if n, ok := node.(*TableName); ok && n.Qualifier == nil {
+	if n, ok := node.(*TableName); ok && n.Qualifier == "" {
 		return string(n.Name)
 	}
 	// sub-select or '.' expression
@@ -57,7 +57,7 @@ func IsColName(node ValExpr) bool {
 	return ok
 }
 
-// IsVal returns true if the ValExpr is a string, number or value arg.
+// IsValue returns true if the ValExpr is a string, number or value arg.
 // NULL is not considered to be a value.
 func IsValue(node ValExpr) bool {
 	switch node.(type) {
@@ -67,7 +67,7 @@ func IsValue(node ValExpr) bool {
 	return false
 }
 
-// HasINCaluse returns true if an yof the conditions has an IN clause.
+// HasINClause returns true if any of the conditions has an IN clause.
 func HasINClause(conditions []BoolExpr) bool {
 	for _, node := range conditions {
 		if c, ok := node.(*ComparisonExpr); ok && c.Operator == AST_IN {
@@ -78,24 +78,27 @@ func HasINClause(conditions []BoolExpr) bool {
 }
 
 // IsSimpleTuple returns true if the ValExpr is a ValTuple that
-// contains simple values.
+// contains simple values or if it's a list arg.
 func IsSimpleTuple(node ValExpr) bool {
-	list, ok := node.(ValTuple)
-	if !ok {
-		// It's a subquery.
-		return false
-	}
-	for _, n := range list {
-		if !IsValue(n) {
-			return false
+	switch vals := node.(type) {
+	case ValTuple:
+		for _, n := range vals {
+			if !IsValue(n) {
+				return false
+			}
 		}
+		return true
+	case ListArg:
+		return true
 	}
-	return true
+	// It's a subquery
+	return false
 }
 
 // AsInterface converts the ValExpr to an interface. It converts
 // ValTuple to []interface{}, ValArg to string, StrVal to sqltypes.String,
-// NumVal to sqltypes.Numeric. Otherwise, it returns an error.
+// NumVal to sqltypes.Numeric, NullVal to nil.
+// Otherwise, it returns an error.
 func AsInterface(node ValExpr) (interface{}, error) {
 	switch node := node.(type) {
 	case ValTuple:
@@ -110,6 +113,8 @@ func AsInterface(node ValExpr) (interface{}, error) {
 		return vals, nil
 	case ValArg:
 		return string(node), nil
+	case ListArg:
+		return string(node), nil
 	case StrVal:
 		return sqltypes.MakeString(node), nil
 	case NumVal:
@@ -118,6 +123,8 @@ func AsInterface(node ValExpr) (interface{}, error) {
 			return nil, fmt.Errorf("type mismatch: %s", err)
 		}
 		return n, nil
+	case *NullVal:
+		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected node %v", node)
 }

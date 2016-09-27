@@ -5,13 +5,13 @@
 %{
 package sqlparser
 
-import "bytes"
+import "strings"
 
-func SetParseTree(yylex interface{}, stmt Statement) {
+func setParseTree(yylex interface{}, stmt Statement) {
   yylex.(*Tokenizer).ParseTree = stmt
 }
 
-func SetAllowComments(yylex interface{}, allow bool) {
+func setAllowComments(yylex interface{}, allow bool) {
   yylex.(*Tokenizer).AllowComments = allow
 }
 
@@ -27,17 +27,9 @@ func decNesting(yylex interface{}) {
   yylex.(*Tokenizer).nesting--
 }
 
-
-func ForceEOF(yylex interface{}) {
+func forceEOF(yylex interface{}) {
   yylex.(*Tokenizer).ForceEOF = true
 }
-
-var (
-  SHARE =        []byte("share")
-  MODE  =        []byte("mode")
-  IF_BYTES =     []byte("if")
-  VALUES_BYTES = []byte("values")
-)
 
 %}
 
@@ -61,9 +53,10 @@ var (
   expr        Expr
   boolExpr    BoolExpr
   valExpr     ValExpr
-  tuple       Tuple
+  colTuple    ColTuple
   valExprs    ValExprs
   values      Values
+  rowTuple    RowTuple
   subquery    *Subquery
   caseExpr    *CaseExpr
   whens       []*When
@@ -74,12 +67,15 @@ var (
   insRows     InsertRows
   updateExprs UpdateExprs
   updateExpr  *UpdateExpr
+  sqlID       SQLName
+  sqlIDs      []SQLName
+  tableID     TableID
 }
 
 %token LEX_ERROR
 %token <empty> SELECT INSERT UPDATE DELETE FROM WHERE GROUP HAVING ORDER BY LIMIT FOR
-%token <empty> ALL DISTINCT AS EXISTS IN IS LIKE BETWEEN NULL ASC DESC VALUES INTO DUPLICATE KEY DEFAULT SET LOCK
-%token <bytes> ID STRING NUMBER VALUE_ARG COMMENT
+%token <empty> ALL DISTINCT AS EXISTS IN IS LIKE BETWEEN NULL ASC DESC VALUES INTO DUPLICATE KEY DEFAULT SET LOCK KEYRANGE
+%token <bytes> ID STRING NUMBER VALUE_ARG LIST_ARG COMMENT
 %token <empty> LE GE NE NULL_SAFE_EQUAL
 %token <empty> '(' '=' '<' '>' '~'
 
@@ -87,7 +83,8 @@ var (
 %left <empty> ','
 %left <empty> JOIN STRAIGHT_JOIN LEFT RIGHT INNER OUTER CROSS NATURAL USE FORCE
 %left <empty> ON
-%left <empty> AND OR
+%left <empty> OR
+%left <empty> AND
 %right <empty> NOT
 %left <empty> '&' '|' '^'
 %left <empty> '+' '-'
@@ -110,12 +107,12 @@ var (
 %token <empty> ADMIN
 
 // Show
-%token <empty> SHOW
 %token <empty> DATABASES TABLES PROXY
 
 // DDL Tokens
-%token <empty> CREATE ALTER DROP RENAME
+%token <empty> CREATE ALTER DROP RENAME ANALYZE
 %token <empty> TABLE INDEX VIEW TO IGNORE IF UNIQUE USING
+%token <empty> SHOW DESCRIBE EXPLAIN
 
 %start any_command
 
@@ -123,12 +120,12 @@ var (
 %type <selStmt> select_statement
 %type <statement> insert_statement update_statement delete_statement set_statement
 %type <statement> create_statement alter_statement rename_statement drop_statement
+%type <statement> analyze_statement other_statement
 %type <bytes2> comment_opt comment_list
 %type <str> union_op
 %type <str> distinct_opt
 %type <selectExprs> select_expression_list
 %type <selectExpr> select_expression
-%type <bytes> as_lower_opt as_opt
 %type <expr> expression
 %type <tableExprs> table_expression_list
 %type <tableExpr> table_expression
@@ -136,16 +133,17 @@ var (
 %type <smTableExpr> simple_table_expression
 %type <tableName> dml_table_expression
 %type <indexHints> index_hint_list
-%type <bytes2> index_list
+%type <sqlIDs> index_list
 %type <boolExpr> where_expression_opt
 %type <boolExpr> boolean_expression condition
 %type <str> compare
 %type <insRows> row_list
 %type <valExpr> value value_expression
-%type <tuple> tuple
+%type <colTuple> col_tuple
 %type <valExprs> value_expression_list
 %type <values> tuple_list
-%type <bytes> keyword_as_func
+%type <rowTuple> row_tuple
+%type <str> keyword_as_func
 %type <subquery> subquery
 %type <byt> unary_operator
 %type <colName> column_name
@@ -165,7 +163,8 @@ var (
 %type <updateExprs> update_list
 %type <updateExpr> update_expression
 %type <empty> exists_opt not_exists_opt ignore_opt non_rename_operation to_opt constraint_opt using_opt
-%type <bytes> sql_id
+%type <sqlID> sql_id as_lower_opt
+%type <tableID> table_id as_opt
 %type <empty> force_eof
 
 %type <statement> begin_statement commit_statement rollback_statement
@@ -181,7 +180,7 @@ var (
 any_command:
   command
   {
-    SetParseTree(yylex, $1)
+    setParseTree(yylex, $1)
   }
 
 command:
@@ -197,6 +196,8 @@ command:
 | alter_statement
 | rename_statement
 | drop_statement
+| analyze_statement
+| other_statement
 | begin_statement
 | commit_statement
 | rollback_statement
@@ -205,11 +206,7 @@ command:
 | admin_statement
 
 select_statement:
-  SELECT comment_opt distinct_opt select_expression_list
-  {
-    $$ = &SimpleSelect{Comments: Comments($2), Distinct: $3, SelectExprs: $4}
-  }
-| SELECT comment_opt distinct_opt select_expression_list FROM table_expression_list where_expression_opt group_by_opt having_opt order_by_opt limit_opt lock_opt
+  SELECT comment_opt distinct_opt select_expression_list FROM table_expression_list where_expression_opt group_by_opt having_opt order_by_opt limit_opt lock_opt
   {
     $$ = &Select{Comments: Comments($2), Distinct: $3, SelectExprs: $4, From: $6, Where: NewWhere(AST_WHERE, $7), GroupBy: GroupBy($8), Having: NewWhere(AST_HAVING, $9), OrderBy: $10, Limit: $11, Lock: $12}
   }
@@ -217,7 +214,6 @@ select_statement:
   {
     $$ = &Union{Type: $2, Left: $1, Right: $3}
   }
-
 
 insert_statement:
   INSERT comment_opt INTO dml_table_expression column_list_opt row_list on_dup_opt
@@ -269,10 +265,6 @@ set_statement:
   {
     $$ = &Set{Comments: Comments($2), Exprs: $3}
   }
-| SET comment_opt NAMES ID 
-  {
-    $$ = &Set{Comments: Comments($2), Exprs: UpdateExprs{&UpdateExpr{Name: &ColName{Name:[]byte("names")}, Expr: StrVal($4)}}}
-  }
 
 begin_statement:
   BEGIN
@@ -313,64 +305,84 @@ show_statement:
   }
 
 create_statement:
-  CREATE TABLE not_exists_opt ID force_eof
+  CREATE TABLE not_exists_opt table_id force_eof
   {
     $$ = &DDL{Action: AST_CREATE, NewName: $4}
   }
-| CREATE constraint_opt INDEX sql_id using_opt ON ID force_eof
+| CREATE constraint_opt INDEX ID using_opt ON table_id force_eof
   {
     // Change this to an alter statement
     $$ = &DDL{Action: AST_ALTER, Table: $7, NewName: $7}
   }
 | CREATE VIEW sql_id force_eof
   {
-    $$ = &DDL{Action: AST_CREATE, NewName: $3}
+    $$ = &DDL{Action: AST_CREATE, NewName: TableID($3)}
   }
 
 alter_statement:
-  ALTER ignore_opt TABLE ID non_rename_operation force_eof
+  ALTER ignore_opt TABLE table_id non_rename_operation force_eof
   {
     $$ = &DDL{Action: AST_ALTER, Table: $4, NewName: $4}
   }
-| ALTER ignore_opt TABLE ID RENAME to_opt ID
+| ALTER ignore_opt TABLE table_id RENAME to_opt table_id
   {
     // Change this to a rename statement
     $$ = &DDL{Action: AST_RENAME, Table: $4, NewName: $7}
   }
 | ALTER VIEW sql_id force_eof
   {
-    $$ = &DDL{Action: AST_ALTER, Table: $3, NewName: $3}
+    $$ = &DDL{Action: AST_ALTER, Table: TableID($3), NewName: TableID($3)}
   }
 
 rename_statement:
-  RENAME TABLE ID TO ID
+  RENAME TABLE table_id TO table_id
   {
     $$ = &DDL{Action: AST_RENAME, Table: $3, NewName: $5}
   }
 
 drop_statement:
-  DROP TABLE exists_opt ID
+  DROP TABLE exists_opt table_id
   {
     $$ = &DDL{Action: AST_DROP, Table: $4}
   }
-| DROP INDEX sql_id ON ID
+| DROP INDEX ID ON table_id
   {
     // Change this to an alter statement
     $$ = &DDL{Action: AST_ALTER, Table: $5, NewName: $5}
   }
 | DROP VIEW exists_opt sql_id force_eof
   {
-    $$ = &DDL{Action: AST_DROP, Table: $4}
+    $$ = &DDL{Action: AST_DROP, Table: TableID($4)}
+  }
+
+analyze_statement:
+  ANALYZE TABLE table_id
+  {
+    $$ = &DDL{Action: AST_ALTER, Table: $3, NewName: $3}
+  }
+
+other_statement:
+  SHOW force_eof
+  {
+    $$ = &Other{}
+  }
+| DESCRIBE force_eof
+  {
+    $$ = &Other{}
+  }
+| EXPLAIN force_eof
+  {
+    $$ = &Other{}
   }
 
 comment_opt:
   {
-    SetAllowComments(yylex, true)
+    setAllowComments(yylex, true)
   }
   comment_list
   {
     $$ = $2
-    SetAllowComments(yylex, false)
+    setAllowComments(yylex, false)
   }
 
 comment_list:
@@ -432,7 +444,7 @@ select_expression:
   {
     $$ = &NonStarExpr{Expr: $1, As: $2}
   }
-| ID '.' '*'
+| table_id '.' '*'
   {
     $$ = &StarExpr{TableName: $1}
   }
@@ -449,7 +461,7 @@ expression:
 
 as_lower_opt:
   {
-    $$ = nil
+    $$ = ""
   }
 | sql_id
   {
@@ -490,13 +502,13 @@ table_expression:
 
 as_opt:
   {
-    $$ = nil
+    $$ = ""
   }
-| ID
+| table_id
   {
     $$ = $1
   }
-| AS ID
+| AS table_id
   {
     $$ = $2
   }
@@ -540,11 +552,11 @@ join_type:
   }
 
 simple_table_expression:
-ID
+  table_id
   {
     $$ = &TableName{Name: $1}
   }
-| ID '.' ID
+| table_id '.' table_id
   {
     $$ = &TableName{Qualifier: $1, Name: $3}
   }
@@ -554,11 +566,11 @@ ID
   }
 
 dml_table_expression:
-ID
+  table_id
   {
     $$ = &TableName{Name: $1}
   }
-| ID '.' ID
+| table_id '.' table_id
   {
     $$ = &TableName{Qualifier: $1, Name: $3}
   }
@@ -583,7 +595,7 @@ index_hint_list:
 index_list:
   sql_id
   {
-    $$ = [][]byte{$1}
+    $$ = []SQLName{$1}
   }
 | index_list ',' sql_id
   {
@@ -645,11 +657,11 @@ condition:
   {
     $$ = &ComparisonExpr{Left: $1, Operator: $2, Right: $3}
   }
-| value_expression IN tuple
+| value_expression IN col_tuple
   {
     $$ = &ComparisonExpr{Left: $1, Operator: AST_IN, Right: $3}
   }
-| value_expression NOT IN tuple
+| value_expression NOT IN col_tuple
   {
     $$ = &ComparisonExpr{Left: $1, Operator: AST_NOT_IN, Right: $4}
   }
@@ -680,6 +692,10 @@ condition:
 | EXISTS subquery
   {
     $$ = &ExistsExpr{Subquery: $2}
+  }
+| KEYRANGE openb value ',' value closeb
+  {
+    $$ = &KeyrangeExpr{Start: $3, End: $5}
   }
 
 compare:
@@ -712,27 +728,7 @@ compare:
     $$ = AST_NSE
   }
 
-row_list:
-  VALUES tuple_list
-  {
-    $$ = $2
-  }
-| select_statement
-  {
-    $$ = $1
-  }
-
-tuple_list:
-  tuple
-  {
-    $$ = Values{$1}
-  }
-| tuple_list ',' tuple
-  {
-    $$ = append($1, $3)
-  }
-
-tuple:
+col_tuple:
   openb value_expression_list closeb
   {
     $$ = ValTuple($2)
@@ -740,6 +736,10 @@ tuple:
 | subquery
   {
     $$ = $1
+  }
+| LIST_ARG
+  {
+    $$ = ListArg($1)
   }
 
 subquery:
@@ -767,7 +767,7 @@ value_expression:
   {
     $$ = $1
   }
-| tuple
+| row_tuple
   {
     $$ = $1
   }
@@ -820,15 +820,15 @@ value_expression:
   }
 | sql_id openb closeb
   {
-    $$ = &FuncExpr{Name: $1}
+    $$ = &FuncExpr{Name: string($1)}
   }
 | sql_id openb select_expression_list closeb
   {
-    $$ = &FuncExpr{Name: $1, Exprs: $3}
+    $$ = &FuncExpr{Name: string($1), Exprs: $3}
   }
 | sql_id openb DISTINCT select_expression_list closeb
   {
-    $$ = &FuncExpr{Name: $1, Distinct: true, Exprs: $4}
+    $$ = &FuncExpr{Name: string($1), Distinct: true, Exprs: $4}
   }
 | keyword_as_func openb select_expression_list closeb
   {
@@ -842,11 +842,11 @@ value_expression:
 keyword_as_func:
   IF
   {
-    $$ = IF_BYTES
+    $$ = "if"
   }
 | VALUES
   {
-    $$ = VALUES_BYTES
+    $$ = "values"
   }
 
 unary_operator:
@@ -908,7 +908,7 @@ column_name:
   {
     $$ = &ColName{Name: $1}
   }
-| ID '.' sql_id
+| table_id '.' sql_id
   {
     $$ = &ColName{Qualifier: $1, Name: $3}
   }
@@ -1010,11 +1010,11 @@ lock_opt:
   }
 | LOCK IN sql_id sql_id
   {
-    if !bytes.Equal($3, SHARE) {
+    if $3 != "share" {
       yylex.Error("expecting share")
       return 1
     }
-    if !bytes.Equal($4, MODE) {
+    if $4 != "mode" {
       yylex.Error("expecting mode")
       return 1
     }
@@ -1047,6 +1047,36 @@ on_dup_opt:
 | ON DUPLICATE KEY UPDATE update_list
   {
     $$ = $5
+  }
+
+row_list:
+  VALUES tuple_list
+  {
+    $$ = $2
+  }
+| select_statement
+  {
+    $$ = $1
+  }
+
+tuple_list:
+  row_tuple
+  {
+    $$ = Values{$1}
+  }
+| tuple_list ',' row_tuple
+  {
+    $$ = append($1, $3)
+  }
+
+row_tuple:
+  openb value_expression_list closeb
+  {
+    $$ = ValTuple($2)
+  }
+| subquery
+  {
+    $$ = $1
   }
 
 update_list:
@@ -1110,7 +1140,13 @@ using_opt:
 sql_id:
   ID
   {
-    $$ = bytes.ToLower($1)
+    $$ = SQLName(strings.ToLower(string($1)))
+  }
+
+table_id:
+  ID
+  {
+    $$ = TableID($1)
   }
 
 openb:
@@ -1130,5 +1166,5 @@ closeb:
 
 force_eof:
 {
-  ForceEOF(yylex)
+  forceEOF(yylex)
 }

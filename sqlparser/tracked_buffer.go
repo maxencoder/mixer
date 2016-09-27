@@ -9,26 +9,6 @@ import (
 	"fmt"
 )
 
-// ParserError: To be deprecated.
-// TODO(sougou): deprecate.
-type ParserError struct {
-	Message string
-}
-
-func NewParserError(format string, args ...interface{}) ParserError {
-	return ParserError{fmt.Sprintf(format, args...)}
-}
-
-func (err ParserError) Error() string {
-	return err.Message
-}
-
-func handleError(err *error) {
-	if x := recover(); x != nil {
-		*err = x.(error)
-	}
-}
-
 // TrackedBuffer is used to rebuild a query from the ast.
 // bindLocations keeps track of locations in the buffer that
 // use bind variables for efficient future substitutions.
@@ -38,22 +18,30 @@ func handleError(err *error) {
 // want to generate a query that's different from the default.
 type TrackedBuffer struct {
 	*bytes.Buffer
-	bindLocations []BindLocation
+	bindLocations []bindLocation
 	nodeFormatter func(buf *TrackedBuffer, node SQLNode)
 }
 
+// NewTrackedBuffer creates a new TrackedBuffer.
 func NewTrackedBuffer(nodeFormatter func(buf *TrackedBuffer, node SQLNode)) *TrackedBuffer {
 	buf := &TrackedBuffer{
 		Buffer:        bytes.NewBuffer(make([]byte, 0, 128)),
-		bindLocations: make([]BindLocation, 0, 4),
+		bindLocations: make([]bindLocation, 0, 4),
 		nodeFormatter: nodeFormatter,
 	}
 	return buf
 }
 
-// Fprintf mimics fmt.Fprintf, but limited to Node(%v), Node.Value(%s) and string(%s).
-// It also allows a %a for a value argument, in which case it adds tracking info for
-// future substitutions.
+func (buf *TrackedBuffer) Myprintf(format string, values ...interface{}) {
+	buf.Fprintf(format, values...)
+}
+
+// Fprintf mimics fmt.Fprintf(buf, ...), but limited to Node(%v),
+// Node.Value(%s) and string(%s). It also allows a %a for a value argument, in
+// which case it adds tracking info for future substitutions.
+//
+// The name must be something other than the usual Printf() to avoid "go vet"
+// warnings due to our custom format specifiers.
 func (buf *TrackedBuffer) Fprintf(format string, values ...interface{}) {
 	end := len(format)
 	fieldnum := 0
@@ -105,14 +93,24 @@ func (buf *TrackedBuffer) Fprintf(format string, values ...interface{}) {
 	}
 }
 
-// WriteArg writes a value argument into the buffer. arg should not contain
-// the ':' prefix. It also adds tracking info for future substitutions.
+// WriteArg writes a value argument into the buffer along with
+// tracking information for future substitutions. arg must contain
+// the ":" or "::" prefix.
 func (buf *TrackedBuffer) WriteArg(arg string) {
-	buf.bindLocations = append(buf.bindLocations, BindLocation{buf.Len(), len(arg) + 1})
-	buf.WriteByte(':')
+	buf.bindLocations = append(buf.bindLocations, bindLocation{
+		offset: buf.Len(),
+		length: len(arg),
+	})
 	buf.WriteString(arg)
 }
 
+// ParsedQuery returns a ParsedQuery that contains bind
+// locations for easy substitution.
 func (buf *TrackedBuffer) ParsedQuery() *ParsedQuery {
-	return &ParsedQuery{buf.String(), buf.bindLocations}
+	return &ParsedQuery{Query: buf.String(), bindLocations: buf.bindLocations}
+}
+
+// HasBindVars returns true if the parsed query uses bind vars.
+func (buf *TrackedBuffer) HasBindVars() bool {
+	return len(buf.bindLocations) != 0
 }
