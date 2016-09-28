@@ -106,10 +106,6 @@ var keywords = map[string]int{
 	"view":          VIEW,
 	"when":          WHEN,
 	"where":         WHERE,
-
-	//for mixer admin
-	"admin": ADMIN,
-	"proxy": PROXY,
 }
 
 // Lex returns the next token form the Tokenizer.

@@ -94,21 +94,6 @@ func forceEOF(yylex interface{}) {
 %right <empty> CASE, WHEN, THEN, ELSE
 %left <empty> END
 
-// Transaction Tokens
-%token <empty> BEGIN COMMIT ROLLBACK
-
-// Charset Tokens
-%token <empty> NAMES 
-
-// Replace
-%token <empty> REPLACE
-
-// Mixer admin
-%token <empty> ADMIN
-
-// Show
-%token <empty> DATABASES TABLES PROXY
-
 // DDL Tokens
 %token <empty> CREATE ALTER DROP RENAME ANALYZE
 %token <empty> TABLE INDEX VIEW TO IGNORE IF UNIQUE USING
@@ -167,14 +152,6 @@ func forceEOF(yylex interface{}) {
 %type <tableID> table_id as_opt
 %type <empty> force_eof
 
-%type <statement> begin_statement commit_statement rollback_statement
-%type <statement> replace_statement
-%type <statement> show_statement
-%type <statement> admin_statement
-
-%type <valExpr> from_opt
-%type <expr> like_or_where_opt
-
 %%
 
 any_command:
@@ -198,12 +175,6 @@ command:
 | drop_statement
 | analyze_statement
 | other_statement
-| begin_statement
-| commit_statement
-| rollback_statement
-| replace_statement
-| show_statement
-| admin_statement
 
 select_statement:
   SELECT comment_opt distinct_opt select_expression_list FROM table_expression_list where_expression_opt group_by_opt having_opt order_by_opt limit_opt lock_opt
@@ -231,22 +202,6 @@ insert_statement:
     $$ = &Insert{Comments: Comments($2), Table: $4, Columns: cols, Rows: Values{vals}, OnDup: OnDup($7)}
   }
 
-replace_statement:
-  REPLACE comment_opt INTO dml_table_expression column_list_opt row_list
-  {
-    $$ = &Replace{Comments: Comments($2), Table: $4, Columns: $5, Rows: $6}
-  }
-| REPLACE comment_opt INTO dml_table_expression SET update_list
-  {
-    cols := make(Columns, 0, len($6))
-    vals := make(ValTuple, 0, len($6))
-    for _, col := range $6 {
-      cols = append(cols, &NonStarExpr{Expr: col.Name})
-      vals = append(vals, col.Expr)
-    }
-    $$ = &Replace{Comments: Comments($2), Table: $4, Columns: cols, Rows: Values{vals}}
-  }
-
 
 update_statement:
   UPDATE comment_opt dml_table_expression SET update_list where_expression_opt order_by_opt limit_opt
@@ -266,43 +221,6 @@ set_statement:
     $$ = &Set{Comments: Comments($2), Exprs: $3}
   }
 
-begin_statement:
-  BEGIN
-  {
-    $$ = &Begin{}
-  }
-
-commit_statement:
-  COMMIT
-  {
-    $$ = &Commit{}
-  }
-
-rollback_statement:
-  ROLLBACK
-  {
-    $$ = &Rollback{}
-  }
-
-admin_statement:
-  ADMIN sql_id '(' value_expression_list ')'
-  {
-    $$ = &Admin{Name : $2, Values : $4}
-  }
-
-show_statement:
-  SHOW DATABASES like_or_where_opt 
-  {
-    $$ = &Show{Section: "databases", LikeOrWhere: $3}
-  }
-| SHOW TABLES from_opt like_or_where_opt 
-  {
-    $$ = &Show{Section: "tables", From: $3, LikeOrWhere: $4}
-  }
-| SHOW PROXY sql_id from_opt like_or_where_opt
-  {
-    $$ = &Show{Section: "proxy", Key: string($3), From: $4, LikeOrWhere: $5}
-  }
 
 create_statement:
   CREATE TABLE not_exists_opt table_id force_eof
@@ -607,28 +525,6 @@ where_expression_opt:
     $$ = nil
   }
 | WHERE boolean_expression
-  {
-    $$ = $2
-  }
-
-like_or_where_opt:
-  {
-    $$ = nil
-  }
-| WHERE boolean_expression
-  {
-    $$ = $2
-  }
-| LIKE value_expression
-  {
-    $$ = $2
-  }
-
-from_opt:
-  {
-    $$ = nil
-  }
-| FROM value_expression
   {
     $$ = $2
   }
