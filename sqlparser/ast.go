@@ -8,8 +8,8 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/maxencoder/mixer/sqltypes"
 	"github.com/youtube/vitess/go/cistring"
-	"github.com/youtube/vitess/go/sqltypes"
 )
 
 // Instructions for creating new types: If a type
@@ -1100,7 +1100,7 @@ type StrVal []byte
 // Format formats the node.
 func (node StrVal) Format(buf *TrackedBuffer) {
 	s := sqltypes.MakeString([]byte(node))
-	s.EncodeSQL(buf)
+	s.EncodeSql(buf)
 }
 
 // WalkSubtree walks the nodes of the subtree

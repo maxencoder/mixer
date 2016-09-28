@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/youtube/vitess/go/sqltypes"
+	"github.com/maxencoder/mixer/sqltypes"
 )
 
 func TestParsedQuery(t *testing.T) {
@@ -46,13 +46,13 @@ func TestParsedQuery(t *testing.T) {
 			map[string]interface{}{
 				"id": make([]int, 1),
 			},
-			"unexpected type []int: [0]",
+			"unsupported bind variable type []int: [0]",
 		}, {
 			"list inside bind vars",
 			"select * from a where id in (:vals)",
 			map[string]interface{}{
 				"vals": []sqltypes.Value{
-					sqltypes.MakeTrusted(sqltypes.Int64, []byte("1")),
+					sqltypes.MakeNumeric([]byte("1")),
 					sqltypes.MakeString([]byte("aa")),
 				},
 			},
@@ -63,7 +63,7 @@ func TestParsedQuery(t *testing.T) {
 			map[string]interface{}{
 				"vals": [][]sqltypes.Value{
 					{
-						sqltypes.MakeTrusted(sqltypes.Int64, []byte("1")),
+						sqltypes.MakeNumeric([]byte("1")),
 						sqltypes.MakeString([]byte("aa")),
 					},
 					{
@@ -121,7 +121,7 @@ func TestParsedQuery(t *testing.T) {
 				"equality": TupleEqualityList{
 					Columns: []string{"pk"},
 					Rows: [][]sqltypes.Value{
-						{sqltypes.MakeTrusted(sqltypes.Int64, []byte("1"))},
+						{sqltypes.MakeNumeric([]byte("1"))},
 						{sqltypes.MakeString([]byte("aa"))},
 					},
 				},
@@ -135,11 +135,11 @@ func TestParsedQuery(t *testing.T) {
 					Columns: []string{"pk1", "pk2"},
 					Rows: [][]sqltypes.Value{
 						{
-							sqltypes.MakeTrusted(sqltypes.Int64, []byte("1")),
+							sqltypes.MakeNumeric([]byte("1")),
 							sqltypes.MakeString([]byte("aa")),
 						},
 						{
-							sqltypes.MakeTrusted(sqltypes.Int64, []byte("2")),
+							sqltypes.MakeNumeric([]byte("2")),
 							sqltypes.MakeString([]byte("bb")),
 						},
 					},
@@ -164,7 +164,7 @@ func TestParsedQuery(t *testing.T) {
 					Columns: []string{"pk"},
 					Rows: [][]sqltypes.Value{
 						{
-							sqltypes.MakeTrusted(sqltypes.Int64, []byte("1")),
+							sqltypes.MakeNumeric([]byte("1")),
 							sqltypes.MakeString([]byte("aa")),
 						},
 					},
@@ -218,10 +218,10 @@ func TestUnorthodox(t *testing.T) {
 	query := "insert into `%s` values %a"
 	bindVars := map[string]interface{}{
 		"vals": [][]sqltypes.Value{{
-			sqltypes.MakeTrusted(sqltypes.Int64, []byte("1")),
+			sqltypes.MakeNumeric([]byte("1")),
 			sqltypes.MakeString([]byte("foo('a')")),
 		}, {
-			sqltypes.MakeTrusted(sqltypes.Int64, []byte("2")),
+			sqltypes.MakeNumeric([]byte("1")),
 			sqltypes.MakeString([]byte("bar(`b`)")),
 		}},
 	}
@@ -233,7 +233,7 @@ func TestUnorthodox(t *testing.T) {
 		t.Error(err)
 	}
 	got := string(bytes)
-	want := "insert into `t` values (1, 'foo(\\'a\\')'), (2, 'bar(`b`)')"
+	want := "insert into `t` values (1, 'foo(\\'a\\')'), (1, 'bar(`b`)')"
 	if got != want {
 		t.Errorf("GenerateQuery: %s, want %s", got, want)
 	}

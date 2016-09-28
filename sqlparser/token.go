@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/youtube/vitess/go/sqltypes"
+	"github.com/maxencoder/mixer/sqltypes"
 )
 
 const eofChar = 0x100
@@ -542,7 +542,7 @@ func (tkn *Tokenizer) scanString(delim uint16, typ int) (int, []byte) {
 			if tkn.lastChar == eofChar {
 				return LEX_ERROR, buffer.Bytes()
 			}
-			if decodedChar := sqltypes.SQLDecodeMap[byte(tkn.lastChar)]; decodedChar == sqltypes.DontEscape {
+			if decodedChar := sqltypes.SqlDecodeMap[byte(tkn.lastChar)]; decodedChar == sqltypes.DONTESCAPE {
 				ch = tkn.lastChar
 			} else {
 				ch = uint16(decodedChar)

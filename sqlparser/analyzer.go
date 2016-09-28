@@ -9,7 +9,7 @@ package sqlparser
 import (
 	"fmt"
 
-	"github.com/youtube/vitess/go/sqltypes"
+	"github.com/maxencoder/mixer/sqltypes"
 )
 
 // GetTableName returns the table name from the SimpleTableExpr
@@ -88,11 +88,7 @@ func AsInterface(node ValExpr) (interface{}, error) {
 	case StrVal:
 		return sqltypes.MakeString(node), nil
 	case NumVal:
-		n, err := sqltypes.BuildIntegral(string(node))
-		if err != nil {
-			return nil, fmt.Errorf("type mismatch: %s", err)
-		}
-		return n, nil
+		return sqltypes.MakeNumeric(node), nil
 	case *NullVal:
 		return nil, nil
 	}

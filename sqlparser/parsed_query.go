@@ -10,7 +10,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/youtube/vitess/go/sqltypes"
+	"github.com/maxencoder/mixer/sqltypes"
 )
 
 type bindLocation struct {
@@ -98,7 +98,7 @@ func EncodeValue(buf *bytes.Buffer, value interface{}) error {
 		if err != nil {
 			return err
 		}
-		v.EncodeSQL(buf)
+		v.EncodeSql(buf)
 	}
 	return nil
 }

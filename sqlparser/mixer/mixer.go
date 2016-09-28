@@ -22,7 +22,6 @@ func GetDBName(sql string) (string, error) {
 	return "", fmt.Errorf("statement '%s' is not a dml", sql)
 }
 
-
 // -- ast.go
 
 func (*Begin) IStatement()    {}
@@ -112,7 +111,7 @@ func (node *Show) Format(buf *TrackedBuffer) {
 %token <empty> BEGIN COMMIT ROLLBACK
 
 // Charset Tokens
-%token <empty> NAMES 
+%token <empty> NAMES
 
 // Replace
 %token <empty> REPLACE
@@ -186,11 +185,11 @@ admin_statement:
   }
 
 show_statement:
-  SHOW DATABASES like_or_where_opt 
+  SHOW DATABASES like_or_where_opt
   {
     $$ = &Show{Section: "databases", LikeOrWhere: $3}
   }
-| SHOW TABLES from_opt like_or_where_opt 
+| SHOW TABLES from_opt like_or_where_opt
   {
     $$ = &Show{Section: "tables", From: $3, LikeOrWhere: $4}
   }
