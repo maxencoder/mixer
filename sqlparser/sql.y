@@ -97,7 +97,6 @@ func forceEOF(yylex interface{}) {
 %left <empty> '*' '/' '%'
 %left <empty> '^'
 %right <empty> '~' UNARY
-%right <empty> INTERVAL
 %nonassoc <empty> '.'
 %left <empty> END
 
@@ -824,14 +823,6 @@ value_expression:
 | '~'  value_expression
   {
     $$ = &UnaryExpr{Operator: TildaStr, Expr: $2}
-  }
-| INTERVAL value_expression sql_id
-  {
-    // This rule prevents the usage of INTERVAL
-    // as a function. If support is needed for that,
-    // we'll need to revisit this. The solution
-    // will be non-trivial because of grammar conflicts.
-    $$ = &IntervalExpr{Expr: $2, Unit: $3}
   }
 | table_id openb closeb
   {

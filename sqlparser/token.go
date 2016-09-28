@@ -137,7 +137,6 @@ var keywords = map[string]int{
 	"int4":                UNUSED,
 	"int8":                UNUSED,
 	"integer":             UNUSED,
-	"interval":            INTERVAL,
 	"into":                INTO,
 	"io_after_gtids":      UNUSED,
 	"is":                  IS,
