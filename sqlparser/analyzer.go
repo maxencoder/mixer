@@ -9,7 +9,7 @@ package sqlparser
 import (
 	"fmt"
 
-	"github.com/maxencoder/mixer/sqltypes"
+	"github.com/youtube/vitess/go/sqltypes"
 )
 
 // GetTableName returns the table name from the SimpleTableExpr
@@ -19,15 +19,6 @@ func GetTableName(node SimpleTableExpr) string {
 		return string(n.Name)
 	}
 	// sub-select or '.' expression
-	return ""
-}
-
-// GetColName returns the column name, only if
-// it's a simple expression. Otherwise, it returns "".
-func GetColName(node Expr) string {
-	if n, ok := node.(*ColName); ok {
-		return string(n.Name)
-	}
 	return ""
 }
 
@@ -47,12 +38,11 @@ func IsValue(node ValExpr) bool {
 	return false
 }
 
-// HasINClause returns true if any of the conditions has an IN clause.
-func HasINClause(conditions []BoolExpr) bool {
-	for _, node := range conditions {
-		if c, ok := node.(*ComparisonExpr); ok && c.Operator == AST_IN {
-			return true
-		}
+// IsNull returns true if the ValExpr is SQL NULL
+func IsNull(node ValExpr) bool {
+	switch node.(type) {
+	case *NullVal:
+		return true
 	}
 	return false
 }
@@ -98,7 +88,7 @@ func AsInterface(node ValExpr) (interface{}, error) {
 	case StrVal:
 		return sqltypes.MakeString(node), nil
 	case NumVal:
-		n, err := sqltypes.BuildNumeric(string(node))
+		n, err := sqltypes.BuildIntegral(string(node))
 		if err != nil {
 			return nil, fmt.Errorf("type mismatch: %s", err)
 		}

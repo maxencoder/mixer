@@ -32,17 +32,13 @@ func NewTrackedBuffer(nodeFormatter func(buf *TrackedBuffer, node SQLNode)) *Tra
 	return buf
 }
 
-func (buf *TrackedBuffer) Myprintf(format string, values ...interface{}) {
-	buf.Fprintf(format, values...)
-}
-
-// Fprintf mimics fmt.Fprintf(buf, ...), but limited to Node(%v),
+// Myprintf mimics fmt.Fprintf(buf, ...), but limited to Node(%v),
 // Node.Value(%s) and string(%s). It also allows a %a for a value argument, in
 // which case it adds tracking info for future substitutions.
 //
 // The name must be something other than the usual Printf() to avoid "go vet"
 // warnings due to our custom format specifiers.
-func (buf *TrackedBuffer) Fprintf(format string, values ...interface{}) {
+func (buf *TrackedBuffer) Myprintf(format string, values ...interface{}) {
 	end := len(format)
 	fieldnum := 0
 	for i := 0; i < end; {

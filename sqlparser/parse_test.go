@@ -547,6 +547,13 @@ func TestValid(t *testing.T) {
 		if out != tcase.output {
 			t.Errorf("out: %s, want %s", out, tcase.output)
 		}
+		// This test just exercises the tree walking functionality.
+		// There's no way automated way to verify that a node calls
+		// all its children. But we can examine code coverage and
+		// ensure that all WalkSubtree functions were called.
+		Walk(func(node SQLNode) (bool, error) {
+			return true, nil
+		}, tree)
 	}
 }
 
@@ -683,8 +690,8 @@ func TestErrors(t *testing.T) {
 		input:  "select 'aa",
 		output: "syntax error at position 12 near 'aa'",
 	}, {
-		input:  "select * from t where = 2",
-		output: "syntax error at position 24",
+		input:  "select * from t where :1 = 2",
+		output: "syntax error at position 24 near ':'",
 	}, {
 		input:  "select * from t where :. = 2",
 		output: "syntax error at position 24 near ':'",

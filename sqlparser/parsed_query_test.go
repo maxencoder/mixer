@@ -5,9 +5,10 @@
 package sqlparser
 
 import (
+	"reflect"
 	"testing"
 
-	"github.com/maxencoder/mixer/sqltypes"
+	"github.com/youtube/vitess/go/sqltypes"
 )
 
 func TestParsedQuery(t *testing.T) {
@@ -45,13 +46,13 @@ func TestParsedQuery(t *testing.T) {
 			map[string]interface{}{
 				"id": make([]int, 1),
 			},
-			"unsupported bind variable type []int: [0]",
+			"unexpected type []int: [0]",
 		}, {
 			"list inside bind vars",
 			"select * from a where id in (:vals)",
 			map[string]interface{}{
 				"vals": []sqltypes.Value{
-					sqltypes.MakeNumeric([]byte("1")),
+					sqltypes.MakeTrusted(sqltypes.Int64, []byte("1")),
 					sqltypes.MakeString([]byte("aa")),
 				},
 			},
@@ -61,12 +62,12 @@ func TestParsedQuery(t *testing.T) {
 			"select * from a where id in (:vals)",
 			map[string]interface{}{
 				"vals": [][]sqltypes.Value{
-					[]sqltypes.Value{
-						sqltypes.MakeNumeric([]byte("1")),
+					{
+						sqltypes.MakeTrusted(sqltypes.Int64, []byte("1")),
 						sqltypes.MakeString([]byte("aa")),
 					},
-					[]sqltypes.Value{
-						sqltypes.Value{},
+					{
+						{},
 						sqltypes.MakeString([]byte("bb")),
 					},
 				},
@@ -120,8 +121,8 @@ func TestParsedQuery(t *testing.T) {
 				"equality": TupleEqualityList{
 					Columns: []string{"pk"},
 					Rows: [][]sqltypes.Value{
-						[]sqltypes.Value{sqltypes.MakeNumeric([]byte("1"))},
-						[]sqltypes.Value{sqltypes.MakeString([]byte("aa"))},
+						{sqltypes.MakeTrusted(sqltypes.Int64, []byte("1"))},
+						{sqltypes.MakeString([]byte("aa"))},
 					},
 				},
 			},
@@ -133,12 +134,12 @@ func TestParsedQuery(t *testing.T) {
 				"equality": TupleEqualityList{
 					Columns: []string{"pk1", "pk2"},
 					Rows: [][]sqltypes.Value{
-						[]sqltypes.Value{
-							sqltypes.MakeNumeric([]byte("1")),
+						{
+							sqltypes.MakeTrusted(sqltypes.Int64, []byte("1")),
 							sqltypes.MakeString([]byte("aa")),
 						},
-						[]sqltypes.Value{
-							sqltypes.MakeNumeric([]byte("2")),
+						{
+							sqltypes.MakeTrusted(sqltypes.Int64, []byte("2")),
 							sqltypes.MakeString([]byte("bb")),
 						},
 					},
@@ -162,8 +163,8 @@ func TestParsedQuery(t *testing.T) {
 				"equality": TupleEqualityList{
 					Columns: []string{"pk"},
 					Rows: [][]sqltypes.Value{
-						[]sqltypes.Value{
-							sqltypes.MakeNumeric([]byte("1")),
+						{
+							sqltypes.MakeTrusted(sqltypes.Int64, []byte("1")),
 							sqltypes.MakeString([]byte("aa")),
 						},
 					},
@@ -180,7 +181,7 @@ func TestParsedQuery(t *testing.T) {
 			continue
 		}
 		buf := NewTrackedBuffer(nil)
-		buf.Fprintf("%v", tree)
+		buf.Myprintf("%v", tree)
 		pq := buf.ParsedQuery()
 		bytes, err := pq.GenerateQuery(tcase.bindVars)
 		var got string
@@ -192,5 +193,48 @@ func TestParsedQuery(t *testing.T) {
 		if got != tcase.output {
 			t.Errorf("for test case: %s, got: '%s', want '%s'", tcase.desc, got, tcase.output)
 		}
+	}
+}
+
+func TestGenerateParsedQuery(t *testing.T) {
+	stmt, err := Parse("select * from a where id =:id")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	pq := GenerateParsedQuery(stmt)
+	want := &ParsedQuery{
+		Query:         "select * from a where id = :id",
+		bindLocations: []bindLocation{{offset: 27, length: 3}},
+	}
+	if !reflect.DeepEqual(pq, want) {
+		t.Errorf("GenerateParsedQuery: %+v, want %+v", pq, want)
+	}
+}
+
+// TestUnorthodox is for testing syntactically invalid constructs
+// that we use internally for efficient SQL generation.
+func TestUnorthodox(t *testing.T) {
+	query := "insert into `%s` values %a"
+	bindVars := map[string]interface{}{
+		"vals": [][]sqltypes.Value{{
+			sqltypes.MakeTrusted(sqltypes.Int64, []byte("1")),
+			sqltypes.MakeString([]byte("foo('a')")),
+		}, {
+			sqltypes.MakeTrusted(sqltypes.Int64, []byte("2")),
+			sqltypes.MakeString([]byte("bar(`b`)")),
+		}},
+	}
+	buf := NewTrackedBuffer(nil)
+	buf.Myprintf(query, "t", ":vals")
+	pq := buf.ParsedQuery()
+	bytes, err := pq.GenerateQuery(bindVars)
+	if err != nil {
+		t.Error(err)
+	}
+	got := string(bytes)
+	want := "insert into `t` values (1, 'foo(\\'a\\')'), (2, 'bar(`b`)')"
+	if got != want {
+		t.Errorf("GenerateQuery: %s, want %s", got, want)
 	}
 }
