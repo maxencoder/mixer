@@ -108,6 +108,20 @@ func forceEOF(yylex interface{}) {
 // MySQL reserved words that are unused by this grammar will map to this token.
 %token <empty> UNUSED
 
+
+// Transaction Tokens
+%token <empty> BEGIN COMMIT ROLLBACK
+
+// Charset Tokens
+%token <empty> NAMES
+
+// Mixer admin
+%token <empty> ADMIN
+
+// Show
+%token <empty> DATABASES TABLES PROXY
+
+
 %type <statement> command
 %type <selStmt> select_statement
 %type <statement> insert_statement update_statement delete_statement set_statement
@@ -161,6 +175,14 @@ func forceEOF(yylex interface{}) {
 %type <empty> as_opt
 %type <empty> force_eof
 
+%type <statement> begin_statement commit_statement rollback_statement
+%type <statement> show_statement
+%type <statement> admin_statement
+
+%type <valExpr> from_opt
+%type <expr> like_or_where_opt
+
+
 %start any_command
 
 %%
@@ -186,6 +208,11 @@ command:
 | drop_statement
 | analyze_statement
 | other_statement
+| begin_statement
+| commit_statement
+| rollback_statement
+| show_statement
+| admin_statement
 
 select_statement:
   SELECT comment_opt distinct_opt straight_join_opt select_expression_list FROM table_references where_expression_opt group_by_opt having_opt order_by_opt limit_opt lock_opt
@@ -316,6 +343,44 @@ other_statement:
 | EXPLAIN force_eof
   {
     $$ = &Other{}
+  }
+
+begin_statement:
+  BEGIN
+  {
+    $$ = &Begin{}
+  }
+
+commit_statement:
+  COMMIT
+  {
+    $$ = &Commit{}
+  }
+
+rollback_statement:
+  ROLLBACK
+  {
+    $$ = &Rollback{}
+  }
+
+admin_statement:
+  ADMIN ID '(' value_expression_list ')'
+  {
+    $$ = &Admin{Name : string($2), Values : $4}
+  }
+
+show_statement:
+  SHOW DATABASES like_or_where_opt
+  {
+    $$ = &Show{Section: "databases", LikeOrWhere: $3}
+  }
+| SHOW TABLES from_opt like_or_where_opt
+  {
+    $$ = &Show{Section: "tables", From: $3, LikeOrWhere: $4}
+  }
+| SHOW PROXY ID from_opt like_or_where_opt
+  {
+    $$ = &Show{Section: "proxy", Key: string($3), From: $4, LikeOrWhere: $5}
   }
 
 comment_opt:
@@ -579,6 +644,28 @@ where_expression_opt:
     $$ = nil
   }
 | WHERE boolean_expression
+  {
+    $$ = $2
+  }
+
+like_or_where_opt:
+  {
+    $$ = nil
+  }
+| WHERE boolean_expression
+  {
+    $$ = $2
+  }
+| LIKE value_expression
+  {
+    $$ = $2
+  }
+
+from_opt:
+  {
+    $$ = nil
+  }
+| FROM value_expression
   {
     $$ = $2
   }

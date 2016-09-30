@@ -1079,18 +1079,18 @@ type ValExpr interface {
 	Expr
 }
 
-func (StrVal) iValExpr()        {}
-func (NumVal) iValExpr()        {}
-func (ValArg) iValExpr()        {}
-func (*NullVal) iValExpr()      {}
-func (*ColName) iValExpr()      {}
-func (ValTuple) iValExpr()      {}
-func (*Subquery) iValExpr()     {}
-func (ListArg) iValExpr()       {}
-func (*BinaryExpr) iValExpr()   {}
-func (*UnaryExpr) iValExpr()    {}
-func (*FuncExpr) iValExpr()     {}
-func (*CaseExpr) iValExpr()     {}
+func (StrVal) iValExpr()      {}
+func (NumVal) iValExpr()      {}
+func (ValArg) iValExpr()      {}
+func (*NullVal) iValExpr()    {}
+func (*ColName) iValExpr()    {}
+func (ValTuple) iValExpr()    {}
+func (*Subquery) iValExpr()   {}
+func (ListArg) iValExpr()     {}
+func (*BinaryExpr) iValExpr() {}
+func (*UnaryExpr) iValExpr()  {}
+func (*FuncExpr) iValExpr()   {}
+func (*CaseExpr) iValExpr()   {}
 
 // StrVal represents a string value.
 type StrVal []byte

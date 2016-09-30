@@ -271,6 +271,10 @@ var keywords = map[string]int{
 	"xor":                 UNUSED,
 	"year_month":          UNUSED,
 	"zerofill":            UNUSED,
+
+	//for mixer admin
+	"admin": ADMIN,
+	"proxy": PROXY,
 }
 
 // Lex returns the next token form the Tokenizer.
