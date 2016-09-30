@@ -14,7 +14,7 @@ func (c *Conn) handleSet(stmt *sqlparser.Set) error {
 		return fmt.Errorf("must set one item once, not %s", nstring(stmt))
 	}
 
-	k := string(stmt.Exprs[0].Name.Name)
+	k := string(stmt.Exprs[0].Name.String())
 
 	switch strings.ToUpper(k) {
 	case `AUTOCOMMIT`:

@@ -202,7 +202,7 @@ func (c *Conn) handleStmtPrepare(sql string) (int, int, interface{}, error) {
 	case *sqlparser.Delete:
 		tableName = nstring(t.Table)
 	case *sqlparser.Replace:
-		tableName = nstring(t.Table)
+		panic("unreachable")
 	default:
 		return 0, 0, nil, fmt.Errorf(`unsupport prepare sql "%s"`, sql)
 	}

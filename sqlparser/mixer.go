@@ -76,6 +76,10 @@ func (node *SimpleSelect) Format(buf *TrackedBuffer) {
 	buf.Myprintf("select %v%s%v", node.Comments, node.Distinct, node.SelectExprs)
 }
 
+func (node *SimpleSelect) WalkSubtree(visit Visit) error {
+	return nil
+}
+
 func (*SimpleSelect) iStatement()       {}
 func (*SimpleSelect) iSelectStatement() {}
 func (*SimpleSelect) iInsertRows()      {}

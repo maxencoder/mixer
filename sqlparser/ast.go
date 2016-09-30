@@ -91,14 +91,15 @@ type Statement interface {
 	SQLNode
 }
 
-func (*Union) iStatement()  {}
-func (*Select) iStatement() {}
-func (*Insert) iStatement() {}
-func (*Update) iStatement() {}
-func (*Delete) iStatement() {}
-func (*Set) iStatement()    {}
-func (*DDL) iStatement()    {}
-func (*Other) iStatement()  {}
+func (*Union) iStatement()   {}
+func (*Select) iStatement()  {}
+func (*Insert) iStatement()  {}
+func (*Replace) iStatement() {}
+func (*Update) iStatement()  {}
+func (*Delete) iStatement()  {}
+func (*Set) iStatement()     {}
+func (*DDL) iStatement()     {}
+func (*Other) iStatement()   {}
 
 // SelectStatement any SELECT statement.
 type SelectStatement interface {
@@ -277,6 +278,17 @@ func (node *Insert) WalkSubtree(visit Visit) error {
 type InsertRows interface {
 	iInsertRows()
 	SQLNode
+}
+
+// Replace not supported in parser yet.
+type Replace struct {
+}
+
+func (node *Replace) Format(buf *TrackedBuffer) {
+}
+
+func (node *Replace) WalkSubtree(visit Visit) error {
+	return nil
 }
 
 func (*Select) iInsertRows() {}

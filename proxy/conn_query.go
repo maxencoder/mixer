@@ -233,8 +233,8 @@ func (c *Conn) newEmptyResultset(stmt *sqlparser.Select) *Resultset {
 		case *sqlparser.StarExpr:
 			r.Fields[i].Name = []byte("*")
 		case *sqlparser.NonStarExpr:
-			if e.As != nil {
-				r.Fields[i].Name = e.As
+			if !e.As.EqualString("") {
+				r.Fields[i].Name = hack.Slice(e.As.String())
 				r.Fields[i].OrgName = hack.Slice(nstring(e.Expr))
 			} else {
 				r.Fields[i].Name = hack.Slice(nstring(e.Expr))
