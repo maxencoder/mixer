@@ -2,9 +2,11 @@ package proxy
 
 import (
 	"fmt"
+	"strings"
+
+	"github.com/maxencoder/mixer/hack"
 	"github.com/maxencoder/mixer/sqlparser"
 	. "github.com/siddontang/go-mysql/mysql"
-	"strings"
 )
 
 func (c *Conn) handleSimpleSelect(sql string, stmt *sqlparser.SimpleSelect) (*Result, error) {
@@ -26,20 +28,20 @@ func (c *Conn) handleSimpleSelect(sql string, stmt *sqlparser.SimpleSelect) (*Re
 	var r *Resultset
 	var err error
 
-	switch strings.ToLower(string(f.Name)) {
+	switch strings.ToLower(f.Name) {
 	case "last_insert_id":
-		r, err = c.buildSimpleSelectResult(c.lastInsertId, f.Name, expr.As)
+		r, err = c.buildSimpleSelectResult(c.lastInsertId, f.Name, expr.As.String())
 	case "row_count":
-		r, err = c.buildSimpleSelectResult(c.affectedRows, f.Name, expr.As)
+		r, err = c.buildSimpleSelectResult(c.affectedRows, f.Name, expr.As.String())
 	case "version":
-		r, err = c.buildSimpleSelectResult(ServerVersion, f.Name, expr.As)
+		r, err = c.buildSimpleSelectResult(ServerVersion, f.Name, expr.As.String())
 	case "connection_id":
-		r, err = c.buildSimpleSelectResult(c.connectionId, f.Name, expr.As)
+		r, err = c.buildSimpleSelectResult(c.connectionId, f.Name, expr.As.String())
 	case "database":
 		if c.schema != nil {
-			r, err = c.buildSimpleSelectResult(c.schema.db, f.Name, expr.As)
+			r, err = c.buildSimpleSelectResult(c.schema.db, f.Name, expr.As.String())
 		} else {
-			r, err = c.buildSimpleSelectResult("NULL", f.Name, expr.As)
+			r, err = c.buildSimpleSelectResult("NULL", f.Name, expr.As.String())
 		}
 	default:
 		return nil, fmt.Errorf("function %s not support", f.Name)
@@ -52,16 +54,16 @@ func (c *Conn) handleSimpleSelect(sql string, stmt *sqlparser.SimpleSelect) (*Re
 	return &Result{Status: c.status, Resultset: r}, nil
 }
 
-func (c *Conn) buildSimpleSelectResult(value interface{}, name []byte, asName []byte) (*Resultset, error) {
+func (c *Conn) buildSimpleSelectResult(value interface{}, name string, asName string) (*Resultset, error) {
 	field := &Field{}
 
-	field.Name = name
+	field.Name = hack.Slice(name)
 
-	if asName != nil {
-		field.Name = asName
+	if asName != "" {
+		field.Name = hack.Slice(asName)
 	}
 
-	field.OrgName = name
+	field.OrgName = hack.Slice(name)
 
 	formatField(field, value)
 

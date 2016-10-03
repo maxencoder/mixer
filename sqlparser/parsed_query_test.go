@@ -5,6 +5,7 @@
 package sqlparser
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/maxencoder/mixer/sqltypes"
@@ -15,7 +16,6 @@ func TestParsedQuery(t *testing.T) {
 		desc     string
 		query    string
 		bindVars map[string]interface{}
-		listVars []sqltypes.Value
 		output   string
 	}{
 		{
@@ -24,7 +24,6 @@ func TestParsedQuery(t *testing.T) {
 			map[string]interface{}{
 				"id": 1,
 			},
-			nil,
 			"select * from a where id = 2",
 		}, {
 			"simple bindvar sub",
@@ -33,7 +32,6 @@ func TestParsedQuery(t *testing.T) {
 				"id1": 1,
 				"id2": nil,
 			},
-			nil,
 			"select * from a where id1 = 1 and id2 = null",
 		}, {
 			"missing bind var",
@@ -41,7 +39,6 @@ func TestParsedQuery(t *testing.T) {
 			map[string]interface{}{
 				"id1": 1,
 			},
-			nil,
 			"missing bind var id2",
 		}, {
 			"unencodable bind var",
@@ -49,17 +46,7 @@ func TestParsedQuery(t *testing.T) {
 			map[string]interface{}{
 				"id": make([]int, 1),
 			},
-			nil,
 			"unsupported bind variable type []int: [0]",
-		}, {
-			"list var sub",
-			"select * from a where id = :0 and name = :1",
-			nil,
-			[]sqltypes.Value{
-				sqltypes.MakeNumeric([]byte("1")),
-				sqltypes.MakeString([]byte("aa")),
-			},
-			"select * from a where id = 1 and name = 'aa'",
 		}, {
 			"list inside bind vars",
 			"select * from a where id in (:vals)",
@@ -69,43 +56,121 @@ func TestParsedQuery(t *testing.T) {
 					sqltypes.MakeString([]byte("aa")),
 				},
 			},
-			nil,
 			"select * from a where id in (1, 'aa')",
 		}, {
 			"two lists inside bind vars",
 			"select * from a where id in (:vals)",
 			map[string]interface{}{
 				"vals": [][]sqltypes.Value{
-					[]sqltypes.Value{
+					{
 						sqltypes.MakeNumeric([]byte("1")),
 						sqltypes.MakeString([]byte("aa")),
 					},
-					[]sqltypes.Value{
-						sqltypes.Value{},
+					{
+						{},
 						sqltypes.MakeString([]byte("bb")),
 					},
 				},
 			},
-			nil,
 			"select * from a where id in ((1, 'aa'), (null, 'bb'))",
 		}, {
-			"illega list var name",
-			"select * from a where id = :0a",
-			nil,
-			[]sqltypes.Value{
-				sqltypes.MakeNumeric([]byte("1")),
-				sqltypes.MakeString([]byte("aa")),
+			"list bind vars",
+			"select * from a where id in ::vals",
+			map[string]interface{}{
+				"vals": []interface{}{
+					1,
+					"aa",
+				},
 			},
-			`unexpected: strconv.ParseInt: parsing "0a": invalid syntax for 0a`,
+			"select * from a where id in (1, 'aa')",
 		}, {
-			"out of range list var index",
-			"select * from a where id = :10",
-			nil,
-			[]sqltypes.Value{
-				sqltypes.MakeNumeric([]byte("1")),
-				sqltypes.MakeString([]byte("aa")),
+			"list bind vars single argument",
+			"select * from a where id in ::vals",
+			map[string]interface{}{
+				"vals": []interface{}{
+					1,
+				},
 			},
-			"index out of range: 10",
+			"select * from a where id in (1)",
+		}, {
+			"list bind vars 0 arguments",
+			"select * from a where id in ::vals",
+			map[string]interface{}{
+				"vals": []interface{}{},
+			},
+			"empty list supplied for vals",
+		}, {
+			"non-list bind var supplied",
+			"select * from a where id in ::vals",
+			map[string]interface{}{
+				"vals": 1,
+			},
+			"unexpected list arg type int for key vals",
+		}, {
+			"list bind var for non-list",
+			"select * from a where id = :vals",
+			map[string]interface{}{
+				"vals": []interface{}{1},
+			},
+			"unexpected arg type []interface {} for key vals",
+		}, {
+			"single column tuple equality",
+			// We have to use an incorrect construct to get around the parser.
+			"select * from a where b = :equality",
+			map[string]interface{}{
+				"equality": TupleEqualityList{
+					Columns: []string{"pk"},
+					Rows: [][]sqltypes.Value{
+						{sqltypes.MakeNumeric([]byte("1"))},
+						{sqltypes.MakeString([]byte("aa"))},
+					},
+				},
+			},
+			"select * from a where b = pk in (1, 'aa')",
+		}, {
+			"multi column tuple equality",
+			"select * from a where b = :equality",
+			map[string]interface{}{
+				"equality": TupleEqualityList{
+					Columns: []string{"pk1", "pk2"},
+					Rows: [][]sqltypes.Value{
+						{
+							sqltypes.MakeNumeric([]byte("1")),
+							sqltypes.MakeString([]byte("aa")),
+						},
+						{
+							sqltypes.MakeNumeric([]byte("2")),
+							sqltypes.MakeString([]byte("bb")),
+						},
+					},
+				},
+			},
+			"select * from a where b = (pk1 = 1 and pk2 = 'aa') or (pk1 = 2 and pk2 = 'bb')",
+		}, {
+			"0 rows",
+			"select * from a where b = :equality",
+			map[string]interface{}{
+				"equality": TupleEqualityList{
+					Columns: []string{"pk"},
+					Rows:    [][]sqltypes.Value{},
+				},
+			},
+			"cannot encode with 0 rows",
+		}, {
+			"values don't match column count",
+			"select * from a where b = :equality",
+			map[string]interface{}{
+				"equality": TupleEqualityList{
+					Columns: []string{"pk"},
+					Rows: [][]sqltypes.Value{
+						{
+							sqltypes.MakeNumeric([]byte("1")),
+							sqltypes.MakeString([]byte("aa")),
+						},
+					},
+				},
+			},
+			"values don't match column count",
 		},
 	}
 
@@ -116,9 +181,9 @@ func TestParsedQuery(t *testing.T) {
 			continue
 		}
 		buf := NewTrackedBuffer(nil)
-		buf.Fprintf("%v", tree)
+		buf.Myprintf("%v", tree)
 		pq := buf.ParsedQuery()
-		bytes, err := pq.GenerateQuery(tcase.bindVars, tcase.listVars)
+		bytes, err := pq.GenerateQuery(tcase.bindVars)
 		var got string
 		if err != nil {
 			got = err.Error()
@@ -131,22 +196,45 @@ func TestParsedQuery(t *testing.T) {
 	}
 }
 
-func TestStarParam(t *testing.T) {
-	buf := NewTrackedBuffer(nil)
-	buf.Fprintf("select * from a where id in (%a)", "*")
-	pq := buf.ParsedQuery()
-	listvars := []sqltypes.Value{
-		sqltypes.MakeNumeric([]byte("1")),
-		sqltypes.MakeString([]byte("aa")),
-	}
-	bytes, err := pq.GenerateQuery(nil, listvars)
+func TestGenerateParsedQuery(t *testing.T) {
+	stmt, err := Parse("select * from a where id =:id")
 	if err != nil {
-		t.Errorf("generate failed: %v", err)
+		t.Error(err)
 		return
 	}
+	pq := GenerateParsedQuery(stmt)
+	want := &ParsedQuery{
+		Query:         "select * from a where id = :id",
+		bindLocations: []bindLocation{{offset: 27, length: 3}},
+	}
+	if !reflect.DeepEqual(pq, want) {
+		t.Errorf("GenerateParsedQuery: %+v, want %+v", pq, want)
+	}
+}
+
+// TestUnorthodox is for testing syntactically invalid constructs
+// that we use internally for efficient SQL generation.
+func TestUnorthodox(t *testing.T) {
+	query := "insert into `%s` values %a"
+	bindVars := map[string]interface{}{
+		"vals": [][]sqltypes.Value{{
+			sqltypes.MakeNumeric([]byte("1")),
+			sqltypes.MakeString([]byte("foo('a')")),
+		}, {
+			sqltypes.MakeNumeric([]byte("1")),
+			sqltypes.MakeString([]byte("bar(`b`)")),
+		}},
+	}
+	buf := NewTrackedBuffer(nil)
+	buf.Myprintf(query, "t", ":vals")
+	pq := buf.ParsedQuery()
+	bytes, err := pq.GenerateQuery(bindVars)
+	if err != nil {
+		t.Error(err)
+	}
 	got := string(bytes)
-	want := "select * from a where id in (1, 'aa')"
+	want := "insert into `t` values (1, 'foo(\\'a\\')'), (1, 'bar(`b`)')"
 	if got != want {
-		t.Errorf("got %s, want %s", got, want)
+		t.Errorf("GenerateQuery: %s, want %s", got, want)
 	}
 }

@@ -5,9 +5,11 @@
 package sqlparser
 
 import (
-	"github.com/maxencoder/mixer/router"
+	"fmt"
 	"sort"
 	"strconv"
+
+	"github.com/maxencoder/mixer/router"
 )
 
 const (
@@ -214,7 +216,8 @@ func checkUpdateExprs(exprs UpdateExprs, rule *router.Rule) {
 	}
 
 	for _, e := range exprs {
-		if string(e.Name.Name) == rule.Key {
+		//XXX what guarantees that rule.Key is in lower case?
+		if string(e.Name.Lowered()) == rule.Key {
 			panic(NewParserError("routing key can not in update expression"))
 		}
 	}
@@ -238,16 +241,6 @@ func getRoutingPlan(statement Statement, router *router.Router) (plan *RoutingPl
 		plan.criteria = plan.routingAnalyzeValues(stmt.Rows.(Values))
 		plan.fullList = makeList(0, len(plan.rule.Nodes))
 		return plan
-	case *Replace:
-		if _, ok := stmt.Rows.(SelectStatement); ok {
-			panic(NewParserError("select in replace not allowed"))
-		}
-
-		plan.rule = router.GetRule(String(stmt.Table))
-		plan.criteria = plan.routingAnalyzeValues(stmt.Rows.(Values))
-		plan.fullList = makeList(0, len(plan.rule.Nodes))
-		return plan
-
 	case *Select:
 		plan.rule = router.GetRule(String(stmt.From[0]))
 		where = stmt.Where
@@ -330,7 +323,7 @@ func (plan *RoutingPlan) routingAnalyzeBoolean(node BoolExpr) []int {
 func (plan *RoutingPlan) routingAnalyzeValue(valExpr ValExpr) int {
 	switch node := valExpr.(type) {
 	case *ColName:
-		if string(node.Name) == plan.rule.Key {
+		if string(node.Name.Lowered()) == plan.rule.Key {
 			return EID_NODE
 		}
 	case ValTuple:
@@ -520,4 +513,24 @@ func differentList(l1 []int, l2 []int) []int {
 	}
 
 	return l3
+}
+
+// ParserError: To be deprecated.
+// TODO(sougou): deprecate.
+type ParserError struct {
+	Message string
+}
+
+func NewParserError(format string, args ...interface{}) ParserError {
+	return ParserError{fmt.Sprintf(format, args...)}
+}
+
+func (err ParserError) Error() string {
+	return err.Message
+}
+
+func handleError(err *error) {
+	if x := recover(); x != nil {
+		*err = x.(error)
+	}
 }
