@@ -1,12 +1,13 @@
 package proxy
 
 import (
-	"github.com/maxencoder/mixer/config"
-	"github.com/siddontang/go-log/log"
-
 	"net"
 	"runtime"
 	"strings"
+
+	"github.com/maxencoder/mixer/config"
+	"github.com/maxencoder/mixer/node"
+	"github.com/siddontang/go-log/log"
 )
 
 type Server struct {
@@ -20,7 +21,7 @@ type Server struct {
 
 	listener net.Listener
 
-	nodes map[string]*Node
+	nodes map[string]*node.Node
 
 	schemas map[string]*Schema
 }
@@ -33,10 +34,6 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	s.addr = cfg.Addr
 	s.user = cfg.User
 	s.password = cfg.Password
-
-	if err := s.parseNodes(); err != nil {
-		return nil, err
-	}
 
 	if err := s.parseSchemas(); err != nil {
 		return nil, err

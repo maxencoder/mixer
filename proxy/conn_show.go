@@ -55,7 +55,7 @@ func (c *Conn) handleShowTables(sql string, stmt *sqlparser.Show) (*Resultset, e
 	var tables []string
 	tmap := map[string]struct{}{}
 	for _, n := range s.nodes {
-		co, err := n.getMasterConn()
+		co, err := n.GetMasterConn()
 		if err != nil {
 			return nil, err
 		}
@@ -128,18 +128,18 @@ func (c *Conn) handleShowProxyConfig() (*Resultset, error) {
 			nodeNames = append(nodeNames, name)
 			var nodeSection = fmt.Sprintf("Schemas[%s]-Node[ %v ]", db, name)
 
-			if node.master != nil {
-				nodeRows = append(nodeRows, []string{nodeSection, "Master", node.master.String()})
+			if node.Master() != nil {
+				nodeRows = append(nodeRows, []string{nodeSection, "Master", node.Master().String()})
 			}
 
-			if node.slave != nil {
-				nodeRows = append(nodeRows, []string{nodeSection, "Slave", node.slave.String()})
+			if node.Slave() != nil {
+				nodeRows = append(nodeRows, []string{nodeSection, "Slave", node.Slave().String()})
 			}
-			nodeRows = append(nodeRows, []string{nodeSection, "Last_Master_Ping", fmt.Sprintf("%v", time.Unix(node.lastMasterPing, 0))})
+			nodeRows = append(nodeRows, []string{nodeSection, "Last_Master_Ping", fmt.Sprintf("%v", time.Unix(node.LastMasterPing(), 0))})
 
-			nodeRows = append(nodeRows, []string{nodeSection, "Last_Slave_Ping", fmt.Sprintf("%v", time.Unix(node.lastSlavePing, 0))})
+			nodeRows = append(nodeRows, []string{nodeSection, "Last_Slave_Ping", fmt.Sprintf("%v", time.Unix(node.LastSlavePing(), 0))})
 
-			nodeRows = append(nodeRows, []string{nodeSection, "down_after_noalive", fmt.Sprintf("%v", node.downAfterNoAlive)})
+			nodeRows = append(nodeRows, []string{nodeSection, "down_after_noalive", fmt.Sprintf("%v", node.DownAfterNoAlive())})
 
 		}
 		rows = append(rows, []string{fmt.Sprintf("Schemas[%s]", db), "Nodes_List", strings.Join(nodeNames, ",")})

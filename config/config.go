@@ -1,8 +1,9 @@
 package config
 
 import (
-	"github.com/siddontang/go-yaml/yaml"
 	"io/ioutil"
+
+	"github.com/siddontang/go-yaml/yaml"
 )
 
 type NodeConfig struct {
@@ -30,11 +31,17 @@ type RulesConfig struct {
 }
 
 type ShardConfig struct {
-	Table string   `yaml:"table"`
-	Key   string   `yaml:"key"`
-	Nodes []string `yaml:"nodes"`
-	Type  string   `yaml:"type"`
-	Range string   `yaml:"range"`
+	Table  string       `yaml:"table"`
+	Key    string       `yaml:"key"`
+	Nodes  []string     `yaml:"nodes"`
+	Type   string       `yaml:"type"`
+	Range  string       `yaml:"range"`
+	Lookup LookupConfig `yaml:"lookup"`
+}
+
+type LookupConfig struct {
+	Node  string `yaml:node`
+	Query string `yaml:query`
 }
 
 type Config struct {

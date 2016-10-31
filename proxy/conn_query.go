@@ -9,6 +9,7 @@ import (
 
 	"github.com/maxencoder/mixer/db"
 	"github.com/maxencoder/mixer/hack"
+	"github.com/maxencoder/mixer/node"
 	"github.com/maxencoder/mixer/sqlparser"
 	. "github.com/siddontang/go-mysql/mysql"
 )
@@ -56,13 +57,14 @@ func (c *Conn) handleQuery(sql string) (r *Result, err error) {
 	case *sqlparser.Admin:
 		r, err = c.handleAdmin(v)
 	default:
-		err = fmt.Errorf("statement %T not support now", stmt)
+		return c.handleUnknown(sql, nil)
+		//err = fmt.Errorf("statement %T is not supported", stmt)
 	}
 
 	return
 }
 
-func (c *Conn) getShardList(stmt sqlparser.Statement, bindVars map[string]interface{}) ([]*Node, error) {
+func (c *Conn) getShardList(stmt sqlparser.Statement, bindVars map[string]interface{}) ([]*node.Node, error) {
 	if c.schema == nil {
 		return nil, NewDefaultError(ER_NO_DB_ERROR)
 	}
@@ -76,19 +78,19 @@ func (c *Conn) getShardList(stmt sqlparser.Statement, bindVars map[string]interf
 		return nil, nil
 	}
 
-	n := make([]*Node, 0, len(ns))
+	n := make([]*node.Node, 0, len(ns))
 	for _, name := range ns {
 		n = append(n, c.server.getNode(name))
 	}
 	return n, nil
 }
 
-func (c *Conn) getConn(n *Node, isSelect bool) (co *db.SqlConn, err error) {
+func (c *Conn) getConn(n *node.Node, isSelect bool) (co *db.SqlConn, err error) {
 	if !c.needBeginTx() {
 		if isSelect {
-			co, err = n.getSelectConn()
+			co, err = n.GetSelectConn()
 		} else {
-			co, err = n.getMasterConn()
+			co, err = n.GetMasterConn()
 		}
 		if err != nil {
 			return
@@ -100,7 +102,7 @@ func (c *Conn) getConn(n *Node, isSelect bool) (co *db.SqlConn, err error) {
 		c.Unlock()
 
 		if !ok {
-			if co, err = n.getMasterConn(); err != nil {
+			if co, err = n.GetMasterConn(); err != nil {
 				return
 			}
 

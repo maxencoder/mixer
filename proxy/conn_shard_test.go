@@ -19,7 +19,7 @@ func testShard_Insert(t *testing.T, table string, node string, id int, str strin
 	s = fmt.Sprintf(`select str from %s where id = %d`, table, id)
 
 	n := newTestServer(t).nodes[node]
-	c, err := n.getMasterConn()
+	c, err := n.GetMasterConn()
 	if err != nil {
 		t.Fatal(s, err)
 	} else {
@@ -80,7 +80,7 @@ func testShard_StmtInsert(t *testing.T, table string, node string, id int, str s
 	s = fmt.Sprintf(`select str from %s where id = ?`, table)
 
 	n := newTestServer(t).nodes[node]
-	c, err := n.getMasterConn()
+	c, err := n.GetMasterConn()
 	if err != nil {
 		t.Fatal(s, err)
 	} else {
@@ -138,7 +138,7 @@ func TestShard_DeleteHashTable(t *testing.T) {
 		if n.String() != "node2" && n.String() != "node3" {
 			continue
 		}
-		c, err := n.getMasterConn()
+		c, err := n.GetMasterConn()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -165,7 +165,7 @@ func TestShard_CreateHashTable(t *testing.T) {
 		if n.String() != "node2" && n.String() != "node3" {
 			continue
 		}
-		c, err := n.getMasterConn()
+		c, err := n.GetMasterConn()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -273,7 +273,7 @@ func TestShard_DeleteRangeTable(t *testing.T) {
 		if n.String() != "node2" && n.String() != "node3" {
 			continue
 		}
-		c, err := n.getMasterConn()
+		c, err := n.GetMasterConn()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -300,7 +300,7 @@ func TestShard_CreateRangeTable(t *testing.T) {
 		if n.String() != "node2" && n.String() != "node3" {
 			continue
 		}
-		c, err := n.getMasterConn()
+		c, err := n.GetMasterConn()
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/maxencoder/mixer/db"
+	"github.com/maxencoder/mixer/node"
 	"github.com/maxencoder/mixer/sqlparser"
 	"github.com/siddontang/go-log/log"
 	. "github.com/siddontang/go-mysql/mysql"
@@ -33,7 +34,7 @@ type Conn struct {
 
 	schema *Schema
 
-	txConns map[*Node]*db.SqlConn
+	txConns map[*node.Node]*db.SqlConn
 
 	closed bool
 
@@ -52,7 +53,7 @@ func (s *Server) newConn(co net.Conn) (c *Conn, err error) {
 
 	c.status = SERVER_STATUS_AUTOCOMMIT
 
-	c.txConns = make(map[*Node]*db.SqlConn)
+	c.txConns = make(map[*node.Node]*db.SqlConn)
 
 	c.closed = false
 
@@ -131,7 +132,7 @@ func (c *Conn) HandleFieldList(table string, fieldWildcard string) ([]*Field, er
 
 	n := c.server.getNode(nodeName)
 
-	co, err := n.getMasterConn()
+	co, err := n.GetMasterConn()
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +213,7 @@ func (c *Conn) handleStmtPrepare(sql string) (int, int, interface{}, error) {
 	n := c.server.getNode(r.Nodes[0])
 
 	var params, columns int
-	if co, err := n.getMasterConn(); err != nil {
+	if co, err := n.GetMasterConn(); err != nil {
 		return 0, 0, nil, fmt.Errorf("prepare error %s", err)
 	} else {
 		defer co.Close()

@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"github.com/maxencoder/mixer/db"
+	"github.com/maxencoder/mixer/node"
 	. "github.com/siddontang/go-mysql/mysql"
 )
 
@@ -29,7 +30,7 @@ func (c *Conn) handleCommit() (err error) {
 		co.Close()
 	}
 
-	c.txConns = map[*Node]*db.SqlConn{}
+	c.txConns = map[*node.Node]*db.SqlConn{}
 
 	return
 }
@@ -48,7 +49,7 @@ func (c *Conn) rollback() (err error) {
 		co.Close()
 	}
 
-	c.txConns = map[*Node]*db.SqlConn{}
+	c.txConns = map[*node.Node]*db.SqlConn{}
 
 	return
 }

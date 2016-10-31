@@ -2,13 +2,15 @@ package proxy
 
 import (
 	"fmt"
+
+	"github.com/maxencoder/mixer/node"
 	"github.com/maxencoder/mixer/router"
 )
 
 type Schema struct {
 	db string
 
-	nodes map[string]*Node
+	nodes map[string]*node.Node
 
 	rule *router.Router
 }
@@ -24,7 +26,7 @@ func (s *Server) parseSchemas() error {
 			return fmt.Errorf("schema [%s] must have a node.", schemaCfg.DB)
 		}
 
-		nodes := make(map[string]*Node)
+		nodes := make(map[string]*node.Node)
 		for _, n := range schemaCfg.Nodes {
 			if s.getNode(n) == nil {
 				return fmt.Errorf("schema [%s] node [%s] config is not exists.", schemaCfg.DB, n)

@@ -5,10 +5,14 @@
 package router
 
 import (
+	"errors"
 	"fmt"
-	"github.com/maxencoder/mixer/hack"
 	"hash/crc32"
 	"strconv"
+
+	"github.com/maxencoder/mixer/config"
+	"github.com/maxencoder/mixer/hack"
+	"github.com/maxencoder/mixer/node"
 )
 
 type KeyError string
@@ -144,9 +148,39 @@ func (s *KeyRangeShard) EqualStart(key interface{}, index int) bool {
 	v := KeyspaceId(EncodeValue(key))
 	return s.Shards[index].Start == v
 }
+
 func (s *KeyRangeShard) EqualStop(key interface{}, index int) bool {
 	v := KeyspaceId(EncodeValue(key))
 	return s.Shards[index].End == v
+}
+
+type HashLookupShard struct {
+	ShardNum int
+	Lookup   Lookup
+}
+
+type Lookup struct {
+	config.LookupConfig
+}
+
+func (s *HashLookupShard) FindForKey(key interface{}) int {
+	conn, err := node.GetNode(s.Lookup.Node).GetSelectConn()
+	if err != nil {
+		panic(err)
+	}
+
+	k := strconv.FormatInt(NumValue(key), 10)
+	sql := fmt.Sprintf(s.Lookup.Query, k)
+	r, err := conn.Execute(sql)
+	if err != nil {
+		panic(errors.New(fmt.Sprintf("Failed to get shard_id: %v", err)))
+	}
+	if len(r.Values) != 1 {
+		panic(errors.New(fmt.Sprintf("Failed to find hotel_id for room_id: %s", k)))
+	}
+	h := NumValue(r.Values[0][0])
+
+	return int(h % int64(s.ShardNum))
 }
 
 type DefaultShard struct {

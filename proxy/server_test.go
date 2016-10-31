@@ -1,18 +1,18 @@
 package proxy
 
 import (
-	"github.com/maxencoder/mixer/config"
-	"github.com/maxencoder/mixer/db"
-	"github.com/siddontang/go-mysql/client"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/maxencoder/mixer/config"
+	"github.com/maxencoder/mixer/db"
 )
 
 var testServerOnce sync.Once
 var testServer *Server
 var testDBOnce sync.Once
-var testDB *client.DB
+var testDB *db.DB
 
 var testConfigData = []byte(`
 addr : 127.0.0.1:4000
@@ -90,12 +90,12 @@ func newTestServer(t *testing.T) *Server {
 	return testServer
 }
 
-func newTestDB(t *testing.T) *client.DB {
+func newTestDB(t *testing.T) *db.DB {
 	newTestServer(t)
 
 	f := func() {
 		var err error
-		testDB, err = client.Open("127.0.0.1:4000", "root", "", "mixer")
+		testDB, err = db.Open("127.0.0.1:4000", "root", "", "mixer")
 
 		if err != nil {
 			t.Fatal(err)

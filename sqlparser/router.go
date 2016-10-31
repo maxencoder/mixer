@@ -216,8 +216,7 @@ func checkUpdateExprs(exprs UpdateExprs, rule *router.Rule) {
 	}
 
 	for _, e := range exprs {
-		//XXX what guarantees that rule.Key is in lower case?
-		if string(e.Name.Lowered()) == rule.Key {
+		if e.Name.Lowered() == rule.Key {
 			panic(NewParserError("routing key can not in update expression"))
 		}
 	}
@@ -323,7 +322,7 @@ func (plan *RoutingPlan) routingAnalyzeBoolean(node BoolExpr) []int {
 func (plan *RoutingPlan) routingAnalyzeValue(valExpr ValExpr) int {
 	switch node := valExpr.(type) {
 	case *ColName:
-		if string(node.Name.Lowered()) == plan.rule.Key {
+		if node.Name.Lowered() == plan.rule.Key {
 			return EID_NODE
 		}
 	case ValTuple:

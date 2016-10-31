@@ -2,16 +2,18 @@ package router
 
 import (
 	"fmt"
-	"github.com/maxencoder/mixer/config"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/maxencoder/mixer/config"
 )
 
 var (
-	DefaultRuleType = "default"
-	HashRuleType    = "hash"
-	RangeRuleType   = "range"
+	DefaultRuleType    = "default"
+	HashRuleType       = "hash"
+	HashLookupRuleType = "hash_lookup"
+	RangeRuleType      = "range"
 )
 
 type RuleConfig struct {
@@ -93,10 +95,14 @@ func (c *RuleConfig) parseNodes(r *Rule) error {
 }
 
 func (c *RuleConfig) parseShard(r *Rule) error {
-	if r.Type == HashRuleType {
+	switch r.Type {
+	case HashRuleType:
 		//hash shard
 		r.Shard = &HashShard{ShardNum: len(r.Nodes)}
-	} else if r.Type == RangeRuleType {
+	case HashLookupRuleType:
+		//hash with external lookup
+		r.Shard = c.parseHashLookup(r)
+	case RangeRuleType:
 		rs, err := ParseNumShardingSpec(c.Range)
 		if err != nil {
 			return err
@@ -107,9 +113,16 @@ func (c *RuleConfig) parseShard(r *Rule) error {
 		}
 
 		r.Shard = &NumRangeShard{Shards: rs}
-	} else {
+	default:
 		r.Shard = &DefaultShard{}
 	}
 
 	return nil
+}
+
+func (c *RuleConfig) parseHashLookup(r *Rule) *HashLookupShard {
+	s := &HashLookupShard{ShardNum: len(r.Nodes)}
+	s.Lookup.Node = c.Lookup.Node
+	s.Lookup.Query = c.Lookup.Query
+	return s
 }

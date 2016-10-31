@@ -2,14 +2,16 @@ package main
 
 import (
 	"flag"
-	"github.com/maxencoder/mixer/config"
-	"github.com/maxencoder/mixer/proxy"
-	"github.com/siddontang/go-log/log"
 	"os"
 	"os/signal"
 	"runtime"
 	"strings"
 	"syscall"
+
+	"github.com/maxencoder/mixer/config"
+	"github.com/maxencoder/mixer/node"
+	"github.com/maxencoder/mixer/proxy"
+	"github.com/siddontang/go-log/log"
 )
 
 var configFile *string = flag.String("config", "/etc/mixer.conf", "mixer proxy config file")
@@ -35,6 +37,11 @@ func main() {
 		setLogLevel(*logLevel)
 	} else {
 		setLogLevel(cfg.LogLevel)
+	}
+
+	if err := node.ParseNodes(cfg); err != nil {
+		log.Error(err.Error())
+		return
 	}
 
 	var svr *proxy.Server

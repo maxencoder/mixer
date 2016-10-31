@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/maxencoder/mixer/node"
 	"github.com/maxencoder/mixer/sqlparser"
 	. "github.com/siddontang/go-mysql/mysql"
 )
@@ -35,9 +36,9 @@ func (c *Conn) adminUpNodeServer(values sqlparser.ValExprs) error {
 	addr := strings.ToLower(nstring(values[2]))
 
 	switch sType {
-	case Master:
+	case node.Master:
 		return c.server.UpMaster(nodeName, addr)
-	case Slave:
+	case node.Slave:
 		return c.server.UpSlave(nodeName, addr)
 	default:
 		return fmt.Errorf("invalid server type %s", sType)
@@ -53,9 +54,9 @@ func (c *Conn) adminDownNodeServer(values sqlparser.ValExprs) error {
 	sType := strings.ToLower(nstring(values[1]))
 
 	switch sType {
-	case Master:
+	case node.Master:
 		return c.server.DownMaster(nodeName)
-	case Slave:
+	case node.Slave:
 		return c.server.DownSlave(nodeName)
 	default:
 		return fmt.Errorf("invalid server type %s", sType)
