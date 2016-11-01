@@ -11,7 +11,7 @@ import (
 	"github.com/maxencoder/mixer/db"
 	"github.com/maxencoder/mixer/node"
 	"github.com/maxencoder/mixer/sqlparser"
-	"github.com/siddontang/go-log/log"
+	"github.com/maxencoder/log"
 	. "github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/server"
 )

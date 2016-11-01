@@ -7,7 +7,7 @@ import (
 
 	"github.com/maxencoder/mixer/config"
 	"github.com/maxencoder/mixer/db"
-	"github.com/siddontang/go-log/log"
+	"github.com/maxencoder/log"
 )
 
 const (

@@ -11,7 +11,7 @@ import (
 	"github.com/maxencoder/mixer/config"
 	"github.com/maxencoder/mixer/node"
 	"github.com/maxencoder/mixer/proxy"
-	"github.com/siddontang/go-log/log"
+	"github.com/maxencoder/log"
 )
 
 var configFile *string = flag.String("config", "/etc/mixer.conf", "mixer proxy config file")
