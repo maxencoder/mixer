@@ -8,10 +8,10 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/maxencoder/log"
 	"github.com/maxencoder/mixer/db"
 	"github.com/maxencoder/mixer/node"
 	"github.com/maxencoder/mixer/sqlparser"
-	"github.com/maxencoder/log"
 	. "github.com/siddontang/go-mysql/mysql"
 	"github.com/siddontang/go-mysql/server"
 )
@@ -69,7 +69,9 @@ func (c *Conn) Close() error {
 		return nil
 	}
 
-	c.c.Close()
+	if !c.c.Closed() {
+		c.c.Close()
+	}
 
 	c.rollback()
 
