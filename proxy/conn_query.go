@@ -129,7 +129,8 @@ func (c *Conn) getConn(n *node.Node, isSelect bool) (co *db.SqlConn, err error) 
 }
 
 func (c *Conn) getDefaultConn(isSelect bool) (*db.SqlConn, error) {
-	n := c.schema.nodes["node1"]
+	node := c.schema.rule.DefaultRule.Nodes[0]
+	n := c.server.getNode(node)
 
 	var co *db.SqlConn
 	var err error
@@ -263,6 +264,10 @@ func makeBindVars(args []interface{}) map[string]interface{} {
 }
 
 func (c *Conn) handleUnknown(sql string, args []interface{}) (*Result, error) {
+	if c.schema == nil {
+		return nil, NewDefaultError(ER_NO_DB_ERROR)
+	}
+
 	co, err := c.getDefaultConn(true)
 	if err != nil {
 		return nil, err

@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/maxencoder/log"
 	"github.com/maxencoder/mixer/config"
 	"github.com/maxencoder/mixer/db"
-	"github.com/maxencoder/log"
 )
 
 const (

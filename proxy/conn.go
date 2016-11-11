@@ -83,7 +83,9 @@ func (c *Conn) Close() error {
 func (c *Conn) Run() {
 	defer func() {
 		r := recover()
-		if err, ok := r.(error); ok {
+		if r != nil {
+			err := r.(error)
+
 			const size = 4096
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]

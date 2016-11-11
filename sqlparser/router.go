@@ -225,6 +225,7 @@ func checkUpdateExprs(exprs UpdateExprs, rule *router.Rule) {
 func getRoutingPlan(statement Statement, router *router.Router) (plan *RoutingPlan) {
 	plan = &RoutingPlan{}
 	var where *Where
+	var whereRequired bool = true
 	switch stmt := statement.(type) {
 	case *Insert:
 		if _, ok := stmt.Rows.(SelectStatement); ok {
@@ -243,6 +244,7 @@ func getRoutingPlan(statement Statement, router *router.Router) (plan *RoutingPl
 	case *Select:
 		plan.rule = router.GetRule(String(stmt.From[0]))
 		where = stmt.Where
+		whereRequired = false
 	case *Update:
 		plan.rule = router.GetRule(String(stmt.Table))
 
@@ -256,8 +258,8 @@ func getRoutingPlan(statement Statement, router *router.Router) (plan *RoutingPl
 
 	if where != nil {
 		plan.criteria = where.Expr
-	} else {
-		plan.rule = router.DefaultRule
+	} else if whereRequired {
+		panic(NewParserError("statements with empty `where` clause not supported"))
 	}
 	plan.fullList = makeList(0, len(plan.rule.Nodes))
 
