@@ -414,8 +414,9 @@ func (c *Conn) mergeSelectResult(rs []*Result, stmt *sqlparser.Select) (*Result,
 	}
 
 	//to do order by, group by, limit offset
-	c.sortSelectResult(s, stmt)
-	//to do, add log here, sort may error because order by key not exist in resultset fields
+	if err := c.sortSelectResult(s, stmt); err != nil {
+		return nil, err
+	}
 
 	if err := c.limitSelectResult(s, stmt); err != nil {
 		return nil, err

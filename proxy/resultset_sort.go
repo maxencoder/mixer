@@ -38,7 +38,7 @@ func newResultsetSorter(r *Resultset, sk []SortKey) (*resultsetSorter, error) {
 		if column, ok := r.FieldNames[k.Name]; ok {
 			sk[i].column = column
 		} else {
-			return nil, fmt.Errorf("key %s not in resultset fields, can not sort", k.Name)
+			return nil, fmt.Errorf("key %s is not in resultset fields, cannot sort", k.Name)
 		}
 	}
 
