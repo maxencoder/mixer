@@ -23,14 +23,14 @@ type SortKey struct {
 	column int
 }
 
-type resultsetSorter struct {
+type ResultsetSorter struct {
 	*Resultset
 
 	sk []SortKey
 }
 
-func newResultsetSorter(r *Resultset, sk []SortKey) (*resultsetSorter, error) {
-	s := new(resultsetSorter)
+func NewResultSetSorter(r *Resultset, sk []SortKey) (*ResultsetSorter, error) {
+	s := new(ResultsetSorter)
 
 	s.Resultset = r
 
@@ -47,11 +47,11 @@ func newResultsetSorter(r *Resultset, sk []SortKey) (*resultsetSorter, error) {
 	return s, nil
 }
 
-func (r *resultsetSorter) Len() int {
+func (r *ResultsetSorter) Len() int {
 	return r.RowNumber()
 }
 
-func (r *resultsetSorter) Less(i, j int) bool {
+func (r *ResultsetSorter) Less(i, j int) bool {
 	v1 := r.Values[i]
 	v2 := r.Values[j]
 
@@ -124,7 +124,7 @@ func cmpValue(v1 interface{}, v2 interface{}) int {
 	}
 }
 
-func (r *resultsetSorter) Swap(i, j int) {
+func (r *ResultsetSorter) Swap(i, j int) {
 	r.Values[i], r.Values[j] = r.Values[j], r.Values[i]
 
 	r.RowDatas[i], r.RowDatas[j] = r.RowDatas[j], r.RowDatas[i]

@@ -437,7 +437,7 @@ func (c *Conn) sortSelectResult(r *Resultset, stmt *sqlparser.Select) error {
 		sk[i].Direction = o.Direction
 	}
 
-	s, err := newResultsetSorter(r, sk)
+	s, err := NewResultSetSorter(r, sk)
 	if err != nil {
 		return err
 	}

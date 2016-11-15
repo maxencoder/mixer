@@ -25,7 +25,7 @@ func TestResultsetSort(t *testing.T) {
 		RowData([]byte("3")),
 	}
 
-	s := new(resultsetSorter)
+	s := new(ResultsetSorter)
 
 	s.Resultset = r1
 
