@@ -99,7 +99,7 @@ func (c *Conn) Run() {
 	for {
 		err := c.c.HandleCommand()
 		if err != nil {
-			log.Error("dispatch error %s", err.Error())
+			log.Error("dispatch error: %s", err.Error())
 			return
 		}
 
