@@ -7,7 +7,6 @@ package router
 import (
 	"errors"
 	"fmt"
-	"hash/crc32"
 	"strconv"
 
 	"github.com/maxencoder/mixer/config"
@@ -56,9 +55,17 @@ func HashValue(value interface{}) uint64 {
 	case int64:
 		return uint64(val)
 	case string:
-		return uint64(crc32.ChecksumIEEE(hack.Slice(val)))
+		v, err := strconv.Atoi(val)
+		if err != nil {
+			panic(err)
+		}
+		return uint64(v)
 	case []byte:
-		return uint64(crc32.ChecksumIEEE(val))
+		v, err := strconv.Atoi(hack.String(val))
+		if err != nil {
+			panic(err)
+		}
+		return uint64(v)
 	}
 	panic(NewKeyError("Unexpected key variable type %T", value))
 }
