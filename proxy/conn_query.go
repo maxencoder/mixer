@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -297,6 +298,12 @@ func (c *Conn) handleSelect(stmt *sqlparser.Select, sql string, args []interface
 		return c.newEmptyResult(stmt), nil
 	}
 
+	if len(conns) > 1 {
+		if err := c.canSelectInManyShards(stmt); err != nil {
+			return nil, err
+		}
+	}
+
 	var rs []*Result
 
 	rs, err = c.executeInShard(conns, sql, args)
@@ -487,5 +494,34 @@ func (c *Conn) limitSelectResult(r *Resultset, stmt *sqlparser.Select) error {
 	r.Values = r.Values[offset : offset+count]
 	r.RowDatas = r.RowDatas[offset : offset+count]
 
+	return nil
+}
+
+func (c *Conn) canSelectInManyShards(stmt *sqlparser.Select) error {
+	if stmt.SelectExprs == nil {
+		return errors.New("SelectExprs not defined")
+	}
+
+	for _, se := range stmt.SelectExprs {
+		switch se := se.(type) {
+		case *sqlparser.StarExpr:
+			continue
+		case *sqlparser.NonStarExpr:
+			switch e := se.Expr.(type) {
+			case *sqlparser.ColName:
+				continue
+			case sqlparser.NumVal:
+				continue
+			case sqlparser.StrVal:
+				continue
+			case sqlparser.BoolVal:
+				continue
+			default:
+				return fmt.Errorf("unexpected SelectExpr %T", e)
+			}
+		default:
+			return fmt.Errorf("unexpected SelectExpr %T", se)
+		}
+	}
 	return nil
 }
