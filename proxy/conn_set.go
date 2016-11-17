@@ -2,9 +2,10 @@ package proxy
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/maxencoder/mixer/sqlparser"
 	. "github.com/siddontang/go-mysql/mysql"
-	"strings"
 )
 
 var nstring = sqlparser.String

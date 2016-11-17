@@ -28,7 +28,8 @@ func (c *Conn) handleQuery(sql string) (r *Result, err error) {
 
 	stmt, err = sqlparser.Parse(sql)
 	if err != nil {
-		return c.handleUnknown(sql, nil)
+		//log.Printf("failed to parse query: %s /* %s */", sql, err)
+		return nil, err
 	}
 
 	switch v := stmt.(type) {
@@ -43,13 +44,17 @@ func (c *Conn) handleQuery(sql string) (r *Result, err error) {
 	case *sqlparser.Replace:
 		r, err = c.handleExec(stmt, sql, nil)
 	case *sqlparser.Set:
-		err = c.handleSet(v)
+		//err = c.handleSet(v)
+		err = fmt.Errorf("statement %T is not supported", stmt)
 	case *sqlparser.Begin:
-		err = c.handleBegin()
+		//err = c.handleBegin()
+		err = fmt.Errorf("statement %T is not supported", stmt)
 	case *sqlparser.Commit:
-		err = c.handleCommit()
+		//err = c.handleCommit()
+		err = fmt.Errorf("statement %T is not supported", stmt)
 	case *sqlparser.Rollback:
-		err = c.handleRollback()
+		//err = c.handleRollback()
+		err = fmt.Errorf("statement %T is not supported", stmt)
 	case *sqlparser.SimpleSelect:
 		r, err = c.handleSimpleSelect(sql, v)
 	case *sqlparser.Show:
@@ -57,8 +62,7 @@ func (c *Conn) handleQuery(sql string) (r *Result, err error) {
 	case *sqlparser.Admin:
 		r, err = c.handleAdmin(v)
 	default:
-		return c.handleUnknown(sql, nil)
-		//err = fmt.Errorf("statement %T is not supported", stmt)
+		err = fmt.Errorf("statement %T is not supported", stmt)
 	}
 
 	return
@@ -116,14 +120,16 @@ func (c *Conn) getConn(n *node.Node, isSelect bool) (co *db.SqlConn, err error) 
 		}
 	}
 
-	//todo, set conn charset, etc...
 	if err = co.UseDB(c.schema.db); err != nil {
 		return
 	}
 
-	if err = co.SetCharset(c.charset); err != nil {
-		return
-	}
+	// TODO: do we need to restore conn state? conn is shared.
+	/*
+		if err = co.SetCharset(c.charset); err != nil {
+			return
+		}
+	*/
 
 	return
 }

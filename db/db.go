@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 
 	"github.com/siddontang/go-mysql/client"
-	. "github.com/siddontang/go-mysql/mysql"
 )
 
 type DB struct {
@@ -115,13 +114,14 @@ func (db *DB) tryReuse(co *client.Conn) error {
 		}
 	}
 
-	//connection may be set names early
-	//we must use default utf8
-	if co.GetCharset() != DEFAULT_CHARSET {
-		if err := co.SetCharset(DEFAULT_CHARSET); err != nil {
-			return err
+	// TODO: do we need to restore conn state? conn is shared.
+	/*
+		if co.GetCharset() != DEFAULT_CHARSET {
+			if err := co.SetCharset(DEFAULT_CHARSET); err != nil {
+				return err
+			}
 		}
-	}
+	*/
 
 	return nil
 }
