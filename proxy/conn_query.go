@@ -498,6 +498,10 @@ func (c *Conn) limitSelectResult(r *Resultset, stmt *sqlparser.Select) error {
 }
 
 func (c *Conn) canSelectInManyShards(stmt *sqlparser.Select) error {
+	if stmt.Distinct != "" {
+		return errors.New("Distict not supported in multi-shard queries")
+	}
+
 	if stmt.SelectExprs == nil {
 		return errors.New("SelectExprs not defined")
 	}
