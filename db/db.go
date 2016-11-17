@@ -9,6 +9,8 @@ import (
 	"github.com/siddontang/go-mysql/client"
 )
 
+var DEFAULT_CHARSET = "utf8mb4"
+
 type DB struct {
 	sync.Mutex
 
@@ -93,6 +95,12 @@ func (db *DB) GetConnNum() int {
 func (db *DB) newConn() (*client.Conn, error) {
 	co, err := client.Connect(db.addr, db.user, db.password, db.db)
 	if err != nil {
+		return nil, err
+	}
+
+	// TODO: we can do this in client.Connect during handshake
+	// but that requires client patching
+	if err := co.SetCharset(DEFAULT_CHARSET); err != nil {
 		return nil, err
 	}
 
