@@ -108,7 +108,6 @@ func forceEOF(yylex interface{}) {
 // MySQL reserved words that are unused by this grammar will map to this token.
 %token <empty> UNUSED
 
-
 // Transaction Tokens
 %token <empty> BEGIN COMMIT ROLLBACK
 
@@ -1166,6 +1165,10 @@ update_expression:
   sql_id '=' value_expression
   {
     $$ = &UpdateExpr{Name: $1, Expr: $3}
+  }
+| NAMES value_expression
+  {
+    $$ = &UpdateExpr{Name: NewColIdent("names"), Expr: $2}
   }
 
 for_from:

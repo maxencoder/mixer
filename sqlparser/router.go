@@ -276,6 +276,7 @@ func (plan *RoutingPlan) routingAnalyzeValues(vals Values) Values {
 				panic(NewParserError("insert is too complex"))
 			}
 		default:
+			// subquery
 			panic(NewParserError("insert is too complex"))
 		}
 	}

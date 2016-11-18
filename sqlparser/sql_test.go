@@ -9,7 +9,6 @@ func testParse(t *testing.T, sql string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 }
 
 func TestSet(t *testing.T) {
@@ -17,10 +16,12 @@ func TestSet(t *testing.T) {
 	testParse(t, sql)
 }
 
+/*
 func TestSimpleSelect(t *testing.T) {
 	sql := "select last_insert_id() as a"
 	testParse(t, sql)
 }
+*/
 
 func TestMixer(t *testing.T) {
 	sql := `admin upnode("node1", "master", "127.0.0.1")`

@@ -73,7 +73,6 @@ var keywords = map[string]int{
 	"current_user":        UNUSED,
 	"cursor":              UNUSED,
 	"database":            UNUSED,
-	"databases":           UNUSED,
 	"day_hour":            UNUSED,
 	"day_microsecond":     UNUSED,
 	"day_minute":          UNUSED,
@@ -273,8 +272,11 @@ var keywords = map[string]int{
 	"zerofill":            UNUSED,
 
 	//for mixer admin
-	"admin": ADMIN,
-	"proxy": PROXY,
+	"admin":     ADMIN,
+	"databases": DATABASES,
+	"names":     NAMES,
+	"tables":    TABLES,
+	"proxy":     PROXY,
 }
 
 // Lex returns the next token form the Tokenizer.
