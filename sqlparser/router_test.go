@@ -279,6 +279,7 @@ func TestValueVarArgSharding(t *testing.T) {
 	sql = "insert into test2 (id) values (?)"
 	checkSharding(t, sql, []int{200000}, 2)
 }
+
 func TestBadUpdateExpr(t *testing.T) {
 	var sql string
 
@@ -291,6 +292,18 @@ func TestBadUpdateExpr(t *testing.T) {
 	}
 
 	sql = "update test1 set id = 10 where id = 5"
+
+	if _, err := GetShardList(sql, r, nil); err == nil {
+		t.Fatal("must err")
+	}
+
+	sql = "insert into test1 (id, k) values (5, 55), (6, 66)"
+
+	if _, err := GetShardList(sql, r, nil); err == nil {
+		t.Fatal("must err")
+	}
+
+	sql = "insert into test1 (id, k) select * from atable"
 
 	if _, err := GetShardList(sql, r, nil); err == nil {
 		t.Fatal("must err")
