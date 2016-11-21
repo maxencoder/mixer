@@ -63,6 +63,13 @@ func ParseConfigData(data []byte) (*Config, error) {
 	return &cfg, nil
 }
 
+func MarshalConfig(cfg *Config) (data []byte, err error) {
+	if data, err = yaml.Marshal(cfg); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
 func ParseConfigFile(fileName string) (*Config, error) {
 	data, err := ioutil.ReadFile(fileName)
 	if err != nil {
