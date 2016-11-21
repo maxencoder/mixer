@@ -5,7 +5,5 @@ if [ ! -f bootstrap.sh ]; then
   exit 1
 fi
 
-source ./dev.env
-
 go get github.com/maxencoder/log
 go get github.com/siddontang/go-yaml/yaml
