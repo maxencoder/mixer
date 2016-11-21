@@ -2,13 +2,14 @@ package proxy
 
 import (
 	"fmt"
-	"github.com/maxencoder/mixer/hack"
-	"github.com/maxencoder/mixer/sqlparser"
-	"github.com/maxencoder/log"
-	. "github.com/siddontang/go-mysql/mysql"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/maxencoder/log"
+	"github.com/maxencoder/mixer/hack"
+	"github.com/maxencoder/mixer/sqlparser"
+	. "github.com/siddontang/go-mysql/mysql"
 )
 
 func (c *Conn) handleShow(sql string, stmt *sqlparser.Show) (*Result, error) {
@@ -117,7 +118,6 @@ func (c *Conn) handleShowProxyConfig() (*Resultset, error) {
 	rows = append(rows, []string{"Global_Config", "Password", c.server.cfg.Password})
 	rows = append(rows, []string{"Global_Config", "LogLevel", c.server.cfg.LogLevel})
 	rows = append(rows, []string{"Global_Config", "Schemas_Count", fmt.Sprintf("%d", len(c.server.schemas))})
-	rows = append(rows, []string{"Global_Config", "Nodes_Count", fmt.Sprintf("%d", len(c.server.nodes))})
 
 	for db, schema := range c.server.schemas {
 		rows = append(rows, []string{"Schemas", "DB", db})

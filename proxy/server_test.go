@@ -7,6 +7,7 @@ import (
 
 	"github.com/maxencoder/mixer/config"
 	"github.com/maxencoder/mixer/db"
+	"github.com/maxencoder/mixer/node"
 )
 
 var testServerOnce sync.Once
@@ -73,6 +74,10 @@ func newTestServer(t *testing.T) *Server {
 		cfg, err := config.ParseConfigData(testConfigData)
 		if err != nil {
 			t.Fatal(err.Error())
+		}
+
+		if err := node.ParseNodes(cfg); err != nil {
+			t.Fatal(err)
 		}
 
 		testServer, err = NewServer(cfg)

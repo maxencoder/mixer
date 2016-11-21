@@ -1,8 +1,9 @@
 package proxy
 
 import (
-	. "github.com/siddontang/go-mysql/mysql"
 	"testing"
+
+	. "github.com/siddontang/go-mysql/mysql"
 )
 
 func TestConn_Handshake(t *testing.T) {
@@ -17,7 +18,7 @@ func TestConn_Handshake(t *testing.T) {
 
 func TestConn_DeleteTable(t *testing.T) {
 	server := newTestServer(t)
-	n := server.nodes["node1"]
+	n := server.schemas["mixer"].nodes["node1"]
 	c, err := n.GetMasterConn()
 	if err != nil {
 		t.Fatal(err)
@@ -42,7 +43,7 @@ func TestConn_CreateTable(t *testing.T) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8`
 
 	server := newTestServer(t)
-	n := server.nodes["node1"]
+	n := server.schemas["mixer"].nodes["node1"]
 	c, err := n.GetMasterConn()
 	if err != nil {
 		t.Fatal(err)
@@ -282,7 +283,7 @@ func TestConn_LastInsertId(t *testing.T) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8`
 
 	server := newTestServer(t)
-	n := server.nodes["node1"]
+	n := server.schemas["mixer"].nodes["node1"]
 
 	c1, err := n.GetMasterConn()
 	if err != nil {

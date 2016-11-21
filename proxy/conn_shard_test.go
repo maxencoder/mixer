@@ -2,9 +2,10 @@ package proxy
 
 import (
 	"fmt"
-	"github.com/siddontang/go-mysql/mysql"
 	"reflect"
 	"testing"
+
+	"github.com/siddontang/go-mysql/mysql"
 )
 
 func testShard_Insert(t *testing.T, table string, node string, id int, str string) {
@@ -18,7 +19,7 @@ func testShard_Insert(t *testing.T, table string, node string, id int, str strin
 	}
 	s = fmt.Sprintf(`select str from %s where id = %d`, table, id)
 
-	n := newTestServer(t).nodes[node]
+	n := newTestServer(t).schemas["mixer"].nodes[node]
 	c, err := n.GetMasterConn()
 	if err != nil {
 		t.Fatal(s, err)
@@ -79,7 +80,7 @@ func testShard_StmtInsert(t *testing.T, table string, node string, id int, str s
 	}
 	s = fmt.Sprintf(`select str from %s where id = ?`, table)
 
-	n := newTestServer(t).nodes[node]
+	n := newTestServer(t).schemas["mixer"].nodes[node]
 	c, err := n.GetMasterConn()
 	if err != nil {
 		t.Fatal(s, err)
@@ -134,7 +135,7 @@ func TestShard_DeleteHashTable(t *testing.T) {
 
 	server := newTestServer(t)
 
-	for _, n := range server.nodes {
+	for _, n := range server.schemas["mixer"].nodes {
 		if n.String() != "node2" && n.String() != "node3" {
 			continue
 		}
@@ -161,7 +162,7 @@ func TestShard_CreateHashTable(t *testing.T) {
 
 	server := newTestServer(t)
 
-	for _, n := range server.nodes {
+	for _, n := range server.schemas["mixer"].nodes {
 		if n.String() != "node2" && n.String() != "node3" {
 			continue
 		}
@@ -269,7 +270,7 @@ func TestShard_DeleteRangeTable(t *testing.T) {
 
 	server := newTestServer(t)
 
-	for _, n := range server.nodes {
+	for _, n := range server.schemas["mixer"].nodes {
 		if n.String() != "node2" && n.String() != "node3" {
 			continue
 		}
@@ -296,7 +297,7 @@ func TestShard_CreateRangeTable(t *testing.T) {
 
 	server := newTestServer(t)
 
-	for _, n := range server.nodes {
+	for _, n := range server.schemas["mixer"].nodes {
 		if n.String() != "node2" && n.String() != "node3" {
 			continue
 		}

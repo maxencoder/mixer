@@ -5,7 +5,6 @@
 package router
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -180,10 +179,10 @@ func (s *HashLookupShard) FindForKey(key interface{}) int {
 	sql := fmt.Sprintf(s.Lookup.Query, k)
 	r, err := conn.Execute(sql)
 	if err != nil {
-		panic(errors.New(fmt.Sprintf("Failed to get shard_id: %v", err)))
+		panic(fmt.Errorf("Failed to get shard_id: %v", err))
 	}
 	if len(r.Values) != 1 {
-		panic(errors.New(fmt.Sprintf("Failed to find hotel_id for room_id: %s", k)))
+		panic(fmt.Errorf("Failed to find hotel_id for room_id: %s", k))
 	}
 	h := NumValue(r.Values[0][0])
 

@@ -5,9 +5,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/maxencoder/mixer/config"
-	"github.com/maxencoder/mixer/node"
 	"github.com/maxencoder/log"
+	"github.com/maxencoder/mixer/config"
 )
 
 type Server struct {
@@ -21,7 +20,7 @@ type Server struct {
 
 	listener net.Listener
 
-	nodes map[string]*node.Node
+	//nodes map[string]*node.Node
 
 	schemas map[string]*Schema
 }

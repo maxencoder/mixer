@@ -29,7 +29,7 @@ func (s *Server) parseSchemas() error {
 		nodes := make(map[string]*node.Node)
 		for _, n := range schemaCfg.Nodes {
 			if s.getNode(n) == nil {
-				return fmt.Errorf("schema [%s] node [%s] config is not exists.", schemaCfg.DB, n)
+				return fmt.Errorf("schema [%s] node [%s] config does not exists.", schemaCfg.DB, n)
 			}
 
 			if _, ok := nodes[n]; ok {
