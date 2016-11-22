@@ -18,7 +18,6 @@ nodes :
   name : node1 
   down_after_noalive : 300
   idle_conns : 16
-  rw_split: true
   user: root
   password:
   master : 127.0.0.1:3306
@@ -32,7 +31,6 @@ nodes :
   name : node3 
   down_after_noalive : 300
   idle_conns : 16
-  rw_split: false
   user: root
   password:
   master : 127.0.0.1:3308
@@ -76,7 +74,6 @@ func TestConfig(t *testing.T) {
 		Name:             "node1",
 		DownAfterNoAlive: 300,
 		IdleConns:        16,
-		RWSplit:          true,
 
 		User:     "root",
 		Password: "",

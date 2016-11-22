@@ -95,15 +95,11 @@ func (n *Node) GetSelectConn() (*db.SqlConn, error) {
 	var db *db.DB
 
 	n.Lock()
-	if n.cfg.RWSplit && n.slave != nil {
-		db = n.slave
-	} else {
-		db = n.master
-	}
+	db = n.slave
 	n.Unlock()
 
 	if db == nil {
-		return nil, fmt.Errorf("no alive mysql server")
+		return nil, fmt.Errorf("no live mysql server")
 	}
 
 	return db.GetConn()
