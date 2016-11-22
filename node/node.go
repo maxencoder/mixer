@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 const (
 	Master = "master"
 	Slave  = "slave"
+
+	KeepAliveInterval = 1
 )
 
 type Node struct {
@@ -36,7 +39,7 @@ func NewNode(cfg config.NodeConfig) (*Node, error) {
 	n.downAfterNoAlive = time.Duration(cfg.DownAfterNoAlive) * time.Second
 
 	if len(cfg.Master) == 0 {
-		return nil, fmt.Errorf("must setting master MySQL node.")
+		return nil, fmt.Errorf("node must have master defined")
 	}
 
 	var err error
@@ -44,11 +47,15 @@ func NewNode(cfg config.NodeConfig) (*Node, error) {
 		return nil, err
 	}
 
-	if len(cfg.Slave) > 0 {
-		if n.slave, err = n.openDB(cfg.Slave); err != nil {
-			log.Error(err.Error())
-			n.slave = nil
-		}
+	if len(cfg.Slaves) == 0 {
+		return nil, fmt.Errorf("node must have at least one slave defined")
+	}
+
+	// random slave
+	slave := cfg.Slaves[rand.Intn(len(cfg.Slaves))]
+	if n.slave, err = n.openDB(slave); err != nil {
+		log.Error(err.Error())
+		n.slave = nil
 	}
 
 	go n.run()
@@ -61,7 +68,7 @@ func (n *Node) run() {
 	//1 check connection alive
 	//2 check remove mysql server alive
 
-	t := time.NewTicker(3000 * time.Second)
+	t := time.NewTicker(KeepAliveInterval * time.Second)
 	defer t.Stop()
 
 	n.lastMasterPing = time.Now().Unix()
