@@ -1,14 +1,13 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"testing"
 )
 
-func TestConfig(t *testing.T) {
-	var testConfigData = []byte(
-		`
+var testConfigData = []byte(`
 addr : 127.0.0.1:4000
 user : root
 password : 
@@ -59,6 +58,7 @@ schemas :
         range: -10000-
 `)
 
+func TestConfig(t *testing.T) {
 	cfg, err := ParseConfigData(testConfigData)
 	if err != nil {
 		t.Fatal(err)
@@ -145,5 +145,31 @@ schemas :
 
 	if cfg.LogLevel != "error" || cfg.User != "root" || cfg.Password != "" || cfg.Addr != "127.0.0.1:4000" {
 		t.Fatal("Top Config not equal.")
+	}
+}
+
+func TestMarshal(t *testing.T) {
+	cfg, err := ParseConfigData(testConfigData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d, err := cfg.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg2, err := ParseConfigData(testConfigData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d2, err := cfg2.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(d, d2) {
+		t.Fatal(err)
 	}
 }

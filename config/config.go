@@ -55,19 +55,19 @@ type Config struct {
 	Schemas []SchemaConfig `yaml:"schemas"`
 }
 
+func (cfg *Config) Marshal() (data []byte, err error) {
+	if data, err = yaml.Marshal(cfg); err != nil {
+		return nil, err
+	}
+	return data, nil
+}
+
 func ParseConfigData(data []byte) (*Config, error) {
 	var cfg Config
 	if err := yaml.Unmarshal([]byte(data), &cfg); err != nil {
 		return nil, err
 	}
 	return &cfg, nil
-}
-
-func MarshalConfig(cfg *Config) (data []byte, err error) {
-	if data, err = yaml.Marshal(cfg); err != nil {
-		return nil, err
-	}
-	return data, nil
 }
 
 func ParseConfigFile(fileName string) (*Config, error) {
