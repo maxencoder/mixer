@@ -20,9 +20,6 @@ type Node struct {
 
 	cfg config.NodeConfig
 
-	//running master db
-	db *db.DB
-
 	master *db.DB
 	slave  *db.DB
 
@@ -46,8 +43,6 @@ func NewNode(cfg config.NodeConfig) (*Node, error) {
 	if n.master, err = n.openDB(cfg.Master); err != nil {
 		return nil, err
 	}
-
-	n.db = n.master
 
 	if len(cfg.Slave) > 0 {
 		if n.slave, err = n.openDB(cfg.Slave); err != nil {
@@ -86,7 +81,7 @@ func (n *Node) String() string {
 
 func (n *Node) GetMasterConn() (*db.SqlConn, error) {
 	n.Lock()
-	db := n.db
+	db := n.master
 	n.Unlock()
 
 	if db == nil {
@@ -103,7 +98,7 @@ func (n *Node) GetSelectConn() (*db.SqlConn, error) {
 	if n.cfg.RWSplit && n.slave != nil {
 		db = n.slave
 	} else {
-		db = n.db
+		db = n.master
 	}
 	n.Unlock()
 
@@ -116,7 +111,7 @@ func (n *Node) GetSelectConn() (*db.SqlConn, error) {
 
 func (n *Node) checkMaster() {
 	n.Lock()
-	db := n.db
+	db := n.master
 	n.Unlock()
 
 	if db == nil {
@@ -197,7 +192,6 @@ func (n *Node) UpMaster(addr string) error {
 
 	n.Lock()
 	n.master = db
-	n.db = db
 	n.Unlock()
 
 	return nil
@@ -225,7 +219,6 @@ func (n *Node) UpSlave(addr string) error {
 
 func (n *Node) DownMaster() error {
 	n.Lock()
-	n.db = nil
 	n.master = nil
 	n.Unlock()
 	return nil

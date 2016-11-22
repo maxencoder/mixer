@@ -50,9 +50,9 @@ type Config struct {
 	Password string `yaml:"password"`
 	LogLevel string `yaml:"log_level"`
 
-	Nodes []NodeConfig `yaml:"nodes"`
-
 	Schemas []SchemaConfig `yaml:"schemas"`
+
+	Nodes []NodeConfig `yaml:"nodes"`
 }
 
 func (cfg *Config) Marshal() (data []byte, err error) {
