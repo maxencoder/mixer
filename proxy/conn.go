@@ -132,7 +132,7 @@ func (c *Conn) HandleFieldList(table string, fieldWildcard string) ([]*Field, er
 		return nil, NewDefaultError(ER_NO_DB_ERROR)
 	}
 
-	nodeName := c.schema.rule.GetRule(table).Nodes[0]
+	nodeName := c.schema.router.GetRule(table).Nodes[0]
 
 	n := c.server.getNode(nodeName)
 
@@ -212,7 +212,7 @@ func (c *Conn) handleStmtPrepare(sql string) (int, int, interface{}, error) {
 		return 0, 0, nil, fmt.Errorf(`unsupport prepare sql "%s"`, sql)
 	}
 
-	r := c.schema.rule.GetRule(tableName)
+	r := c.schema.router.GetRule(tableName)
 
 	n := c.server.getNode(r.Nodes[0])
 

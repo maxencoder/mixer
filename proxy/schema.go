@@ -12,7 +12,7 @@ type Schema struct {
 
 	nodes map[string]*node.Node
 
-	rule *router.Router
+	router *router.Router
 }
 
 func (s *Server) parseSchemas() error {
@@ -45,9 +45,9 @@ func (s *Server) parseSchemas() error {
 		}
 
 		s.schemas[schemaCfg.DB] = &Schema{
-			db:    schemaCfg.DB,
-			nodes: nodes,
-			rule:  rule,
+			db:     schemaCfg.DB,
+			nodes:  nodes,
+			router: rule,
 		}
 	}
 

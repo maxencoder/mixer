@@ -74,7 +74,7 @@ func (c *Conn) getShardList(stmt sqlparser.Statement, bindVars map[string]interf
 		return nil, NewDefaultError(ER_NO_DB_ERROR)
 	}
 
-	ns, err := sqlparser.GetStmtShardList(stmt, c.schema.rule, bindVars)
+	ns, err := sqlparser.GetStmtShardList(stmt, c.schema.router, bindVars)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +136,7 @@ func (c *Conn) getConn(n *node.Node, isSelect bool) (co *db.SqlConn, err error) 
 }
 
 func (c *Conn) getDefaultConn(isSelect bool) (*db.SqlConn, error) {
-	node := c.schema.rule.DefaultRule.Nodes[0]
+	node := c.schema.router.DefaultRule.Nodes[0]
 	n := c.server.getNode(node)
 
 	var co *db.SqlConn

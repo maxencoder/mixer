@@ -143,14 +143,14 @@ func (c *Conn) handleShowProxyConfig() (*Resultset, error) {
 		}
 		rows = append(rows, []string{fmt.Sprintf("Schemas[%s]", db), "Nodes_List", strings.Join(nodeNames, ",")})
 
-		var defaultRule = schema.rule.DefaultRule
+		var defaultRule = schema.router.DefaultRule
 		if defaultRule.DB == db {
 			if defaultRule.DB == db {
 				rows = append(rows, []string{fmt.Sprintf("Schemas[%s]_Rule_Default", db),
 					"Default_Table", defaultRule.String()})
 			}
 		}
-		for tb, r := range schema.rule.Rules {
+		for tb, r := range schema.router.Rules {
 			if r.DB == db {
 				rows = append(rows, []string{fmt.Sprintf("Schemas[%s]_Rule_Table", db),
 					fmt.Sprintf("Table[ %s ]", tb), r.String()})
