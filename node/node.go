@@ -28,8 +28,8 @@ type Node struct {
 
 	downAfterNoAlive time.Duration
 
-	lastMasterPing int64
-	lastSlavePing  int64
+	lastMasterPing time.Time
+	lastSlavePing  time.Time
 }
 
 func NewNode(cfg config.NodeConfig) (*Node, error) {
@@ -71,7 +71,7 @@ func (n *Node) run() {
 	t := time.NewTicker(KeepAliveInterval * time.Second)
 	defer t.Stop()
 
-	n.lastMasterPing = time.Now().Unix()
+	n.lastMasterPing = time.Now()
 	n.lastSlavePing = n.lastMasterPing
 	for {
 		select {
@@ -118,37 +118,40 @@ func (n *Node) checkMaster() {
 	n.Unlock()
 
 	if db == nil {
-		log.Info("no master avaliable")
+		// log.Info("no master avaliable")
 		return
 	}
 
 	if err := db.Ping(); err != nil {
 		log.Error("%s ping master %s error %s", n, db.Addr(), err.Error())
 	} else {
-		n.lastMasterPing = time.Now().Unix()
+		n.lastMasterPing = time.Now()
 		return
 	}
 
-	if int64(n.downAfterNoAlive) > 0 && time.Now().Unix()-n.lastMasterPing > int64(n.downAfterNoAlive) {
-		log.Error("%s down master db %s", n, n.master.Addr())
+	if n.downAfterNoAlive > 0 && time.Since(n.lastMasterPing) > n.downAfterNoAlive {
+		log.Error("%s putting master db down %s", n, n.master.Addr())
 
 		n.DownMaster()
 	}
 }
 
 func (n *Node) checkSlave() {
-	if n.slave == nil {
+	n.Lock()
+	db := n.slave
+	n.Unlock()
+
+	if db == nil {
 		return
 	}
 
-	db := n.slave
 	if err := db.Ping(); err != nil {
 		log.Error("%s ping slave %s error %s", n, db.Addr(), err.Error())
 	} else {
-		n.lastSlavePing = time.Now().Unix()
+		n.lastSlavePing = time.Now()
 	}
 
-	if int64(n.downAfterNoAlive) > 0 && time.Now().Unix()-n.lastSlavePing > int64(n.downAfterNoAlive) {
+	if n.downAfterNoAlive > 0 && time.Since(n.lastSlavePing) > n.downAfterNoAlive {
 		log.Error("%s slave db %s not alive over %ds, down it",
 			n, db.Addr(), int64(n.downAfterNoAlive/time.Second))
 
@@ -248,11 +251,11 @@ func (n *Node) Slave() *db.DB {
 	return n.slave
 }
 
-func (n *Node) LastMasterPing() int64 {
+func (n *Node) LastMasterPing() time.Time {
 	return n.lastMasterPing
 }
 
-func (n *Node) LastSlavePing() int64 {
+func (n *Node) LastSlavePing() time.Time {
 	return n.lastSlavePing
 }
 

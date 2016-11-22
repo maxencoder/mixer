@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/maxencoder/log"
 	"github.com/maxencoder/mixer/hack"
@@ -135,9 +134,9 @@ func (c *Conn) handleShowProxyConfig() (*Resultset, error) {
 			if node.Slave() != nil {
 				nodeRows = append(nodeRows, []string{nodeSection, "Slave", node.Slave().String()})
 			}
-			nodeRows = append(nodeRows, []string{nodeSection, "Last_Master_Ping", fmt.Sprintf("%v", time.Unix(node.LastMasterPing(), 0))})
+			nodeRows = append(nodeRows, []string{nodeSection, "Last_Master_Ping", fmt.Sprintf("%v", node.LastMasterPing().Unix())})
 
-			nodeRows = append(nodeRows, []string{nodeSection, "Last_Slave_Ping", fmt.Sprintf("%v", time.Unix(node.LastSlavePing(), 0))})
+			nodeRows = append(nodeRows, []string{nodeSection, "Last_Slave_Ping", fmt.Sprintf("%v", node.LastSlavePing().Unix())})
 
 			nodeRows = append(nodeRows, []string{nodeSection, "down_after_noalive", fmt.Sprintf("%v", node.DownAfterNoAlive())})
 
