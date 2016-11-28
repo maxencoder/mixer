@@ -43,7 +43,7 @@ type RoutingPlan struct {
 		where id between 1 and 10
 		where id >= 1 and id < 10
 */
-func GetShardList(sql string, r *router.Router, bindVars map[string]interface{}) (nodes []string, err error) {
+func GetShardList(sql string, r *router.OldRouter, bindVars map[string]interface{}) (nodes []string, err error) {
 	var stmt Statement
 	stmt, err = Parse(sql)
 	if err != nil {
@@ -53,7 +53,7 @@ func GetShardList(sql string, r *router.Router, bindVars map[string]interface{})
 	return GetStmtShardList(stmt, r, bindVars)
 }
 
-func GetShardListIndex(sql string, r *router.Router, bindVars map[string]interface{}) (nodes []int, err error) {
+func GetShardListIndex(sql string, r *router.OldRouter, bindVars map[string]interface{}) (nodes []int, err error) {
 	var stmt Statement
 	stmt, err = Parse(sql)
 	if err != nil {
@@ -63,7 +63,7 @@ func GetShardListIndex(sql string, r *router.Router, bindVars map[string]interfa
 	return GetStmtShardListIndex(stmt, r, bindVars)
 }
 
-func GetStmtShardList(stmt Statement, r *router.Router, bindVars map[string]interface{}) (nodes []string, err error) {
+func GetStmtShardList(stmt Statement, r *router.OldRouter, bindVars map[string]interface{}) (nodes []string, err error) {
 	defer handleError(&err)
 
 	plan := getRoutingPlan(stmt, r)
@@ -80,7 +80,7 @@ func GetStmtShardList(stmt Statement, r *router.Router, bindVars map[string]inte
 	return nodes, nil
 }
 
-func GetStmtShardListIndex(stmt Statement, r *router.Router, bindVars map[string]interface{}) (nodes []int, err error) {
+func GetStmtShardListIndex(stmt Statement, r *router.OldRouter, bindVars map[string]interface{}) (nodes []int, err error) {
 	defer handleError(&err)
 
 	plan := getRoutingPlan(stmt, r)
@@ -222,7 +222,7 @@ func checkUpdateExprs(exprs UpdateExprs, rule *router.Rule) {
 	}
 }
 
-func getRoutingPlan(statement Statement, router *router.Router) (plan *RoutingPlan) {
+func getRoutingPlan(statement Statement, router *router.OldRouter) (plan *RoutingPlan) {
 	plan = &RoutingPlan{}
 	var where *Where
 	var whereRequired bool = true

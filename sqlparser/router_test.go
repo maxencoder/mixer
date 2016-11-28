@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func newTestDBRule() *router.Router {
+func newTestDBRule() *router.OldRouter {
 	var s = `
 schemas :
 -
@@ -37,9 +37,9 @@ schemas :
 		panic(err)
 	}
 
-	var r *router.Router
+	var r *router.OldRouter
 
-	r, err = router.NewRouter(&cfg.Schemas[0])
+	r, err = router.OldNewRouter(&cfg.Schemas[0])
 	if err != nil {
 		println(err.Error())
 		panic(err)

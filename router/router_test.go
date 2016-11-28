@@ -1,9 +1,11 @@
 package router
 
 import (
+	"fmt"
+	"testing"
+
 	"github.com/maxencoder/mixer/config"
 	"github.com/siddontang/go-yaml/yaml"
-	"testing"
 )
 
 func TestParseRule(t *testing.T) {
@@ -33,7 +35,7 @@ schemas :
 		t.Fatal(err)
 	}
 
-	rt, err := NewRouter(&cfg.Schemas[0])
+	rt, err := OldNewRouter(&cfg.Schemas[0])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,4 +81,41 @@ schemas :
 	if n := defaultRule.FindNode(11); n != "node1" {
 		t.Fatal(n)
 	}
+}
+
+func TestRouter(t *testing.T) {
+	r := NewRouter()
+
+	_, err := r.NewNodeRoute("node1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = r.NewNodeRoute("node2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = r.NewNodeRoute("node3")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	{
+		r.NewModuloHashRoute("h12", 2, []string{"node1", "node2"})
+
+		m1, err := r.NewMirrorRoute("m1", "node1", []string{"h12", "node3"})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := r.DeleteRoute("node2"); err == nil {
+			t.Fatal("should not be possible: 'node2' is used")
+		}
+
+		r := m1.FindForKeys([]Key{Key(-2), Key(-1), Key(0)})
+
+		fmt.Printf("%v\n", r)
+		//fmt.Printf("%#v\n", r)
+	}
+
+	t.Fatal(1)
 }

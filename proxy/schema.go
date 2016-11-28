@@ -12,7 +12,7 @@ type Schema struct {
 
 	nodes map[string]*node.Node
 
-	router *router.Router
+	router *router.OldRouter
 }
 
 func (s *Server) parseSchemas() error {
@@ -39,7 +39,7 @@ func (s *Server) parseSchemas() error {
 			nodes[n] = s.getNode(n)
 		}
 
-		rule, err := router.NewRouter(&schemaCfg)
+		rule, err := router.OldNewRouter(&schemaCfg)
 		if err != nil {
 			return err
 		}
