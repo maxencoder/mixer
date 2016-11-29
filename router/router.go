@@ -3,12 +3,19 @@ package router
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/maxencoder/mixer/config"
 	"github.com/maxencoder/mixer/node"
+)
+
+const (
+	MIRROR_RO = iota
+	MIRROR_RW
+	MIRROR_ALL
 )
 
 /*
@@ -116,6 +123,8 @@ func (r *Router) DeleteTableRouter(name string) error {
 func (r *Router) NewNodeRoute(node string) (Route, error) {
 	n := &NodeRoute{router: r, Node: node}
 
+	// TODO: check node exists
+
 	if ex, _ := r.GetRoute(node); ex != nil {
 		return nil, fmt.Errorf("route '%s' already exists", node)
 	}
@@ -221,8 +230,15 @@ type TableRouter struct {
 	Route RouteRef
 }
 
-// routing key
-type Key int64
+func (r *TableRouter) FullList() []string {
+	l := r.Route.FullList()
+
+	l = dedupe(l...)
+
+	sort.Strings(l)
+
+	return l
+}
 
 /*
 	Result of routing:
@@ -257,6 +273,8 @@ func (r *RoutingResult) Merge(q *RoutingResult) {
 type Route interface {
 	FindForKeys(keys []Key) *RoutingResult
 
+	AllSelectNodes() []string
+
 	LinkedTo() []RouteRef
 }
 
@@ -268,6 +286,10 @@ type RouteRef struct {
 
 func (rf *RouteRef) Route() Route {
 	return rf.router.getRoute(rf.to)
+}
+
+func (rf *RouteRef) FullList() []string {
+	return rf.Route().AllSelectNodes()
 }
 
 type NodeRoute struct {
@@ -290,8 +312,14 @@ func (r *NodeRoute) LinkedTo() []RouteRef {
 	return nil
 }
 
+func (r *NodeRoute) AllSelectNodes() []string {
+	return []string{r.Node}
+}
+
 type MirrorRoute struct {
 	router *Router
+
+	Kind byte
 
 	Main   RouteRef
 	Mirror []RouteRef
@@ -323,6 +351,18 @@ func (r *MirrorRoute) LinkedTo() []RouteRef {
 	return append(r.Mirror, r.Main)
 }
 
+func (r *MirrorRoute) AllSelectNodes() []string {
+	l := r.Main.FullList()
+
+	if r.Kind == MIRROR_RO || r.Kind == MIRROR_ALL {
+		for _, m := range r.Mirror {
+			l = append(l, m.FullList()...)
+		}
+	}
+
+	return l
+}
+
 type ModuloHashRoute struct {
 	router *Router
 
@@ -349,6 +389,13 @@ func (r *ModuloHashRoute) FindForKeys(keys []Key) *RoutingResult {
 
 func (r *ModuloHashRoute) LinkedTo() []RouteRef {
 	return r.Routes
+}
+
+func (r *ModuloHashRoute) AllSelectNodes() (l []string) {
+	for _, ro := range r.Routes {
+		l = append(l, ro.FullList()...)
+	}
+	return
 }
 
 type LookupRoute struct {
@@ -415,6 +462,13 @@ func (r *LookupRoute) fetchShardKeysMap(keys []Key) (map[int][]Key, error) {
 
 func (r *LookupRoute) LinkedTo() []RouteRef {
 	return r.Routes
+}
+
+func (r *LookupRoute) FullList() (l []string) {
+	for _, ro := range r.Routes {
+		l = append(l, ro.FullList()...)
+	}
+	return
 }
 
 /*

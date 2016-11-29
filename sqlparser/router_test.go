@@ -78,6 +78,9 @@ func TestConditionSharding(t *testing.T) {
 	sql = "select * from test1 where id = 5"
 	checkSharding(t, sql, nil, 5)
 
+	sql = "select * from test1 where id != 5"
+	checkSharding(t, sql, nil, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+
 	sql = "select * from test1 where id in (5, 6)"
 	checkSharding(t, sql, nil, 5, 6)
 

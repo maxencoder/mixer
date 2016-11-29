@@ -5,6 +5,7 @@
 package sqlparser
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -43,6 +44,7 @@ type RoutingPlan struct {
 		where id between 1 and 10
 		where id >= 1 and id < 10
 */
+
 func GetShardList(sql string, r *router.OldRouter, bindVars map[string]interface{}) (nodes []string, err error) {
 	var stmt Statement
 	stmt, err = Parse(sql)
@@ -101,81 +103,24 @@ func (plan *RoutingPlan) findConditionShard(expr BoolExpr) (shardList []int) {
 	switch criteria := expr.(type) {
 	case *ComparisonExpr:
 		switch criteria.Operator {
-		case "=", "<=>":
+		case "=":
 			if plan.routingAnalyzeValue(criteria.Left) == EID_NODE {
 				index = plan.findShard(criteria.Right)
 			} else {
 				index = plan.findShard(criteria.Left)
 			}
 			return []int{index}
-		case "<", "<=":
-			if plan.rule.Type == router.HashRuleType {
-				return plan.fullList
-			}
-
-			if plan.routingAnalyzeValue(criteria.Left) == EID_NODE {
-				index = plan.findShard(criteria.Right)
-				if criteria.Operator == "<" {
-					index = plan.adjustShardIndex(criteria.Right, index)
-				}
-
-				return makeList(0, index+1)
-			} else {
-				index = plan.findShard(criteria.Left)
-				return makeList(index, len(plan.rule.Nodes))
-			}
-		case ">", ">=":
-			if plan.rule.Type == router.HashRuleType {
-				return plan.fullList
-			}
-
-			if plan.routingAnalyzeValue(criteria.Left) == EID_NODE {
-				index = plan.findShard(criteria.Right)
-				return makeList(index, len(plan.rule.Nodes))
-			} else {
-				index = plan.findShard(criteria.Left)
-
-				if criteria.Operator == ">" {
-					index = plan.adjustShardIndex(criteria.Left, index)
-				}
-				return makeList(0, index+1)
-			}
 		case "in":
 			return plan.findShardList(criteria.Right)
+		case "<=>", "!=":
+			return plan.fullList
+		case "<", ">", "<=", ">=":
+			return plan.fullList
 		case "not in":
-			if plan.rule.Type == router.RangeRuleType {
-				return plan.fullList
-			}
-
-			l := plan.findShardList(criteria.Right)
-			return plan.notList(l)
-		}
-	case *RangeCond:
-		if plan.rule.Type == router.HashRuleType {
 			return plan.fullList
 		}
-
-		start := plan.findShard(criteria.From)
-		last := plan.findShard(criteria.To)
-
-		if criteria.Operator == "between" {
-			if last < start {
-				start, last = last, start
-			}
-			l := makeList(start, last+1)
-			return l
-		} else {
-			if last < start {
-				start, last = last, start
-				start = plan.adjustShardIndex(criteria.To, start)
-			} else {
-				start = plan.adjustShardIndex(criteria.From, start)
-			}
-
-			l1 := makeList(0, start+1)
-			l2 := makeList(last, len(plan.rule.Nodes))
-			return unionList(l1, l2)
-		}
+	case *RangeCond:
+		return plan.fullList
 	default:
 		return plan.fullList
 	}
@@ -188,14 +133,16 @@ func (plan *RoutingPlan) shardListFromPlan() (shardList []int) {
 		return plan.fullList
 	}
 
-	//default rule will route all sql to one node
-	//if rule has one node, we also can route directly
-	if plan.rule.Type == router.DefaultRuleType || len(plan.rule.Nodes) == 1 {
-		if len(plan.fullList) != 1 {
-			panic(NewParserError("invalid rule nodes num %d, must 1", plan.fullList))
+	// TODO: optimize routing if there's only one shard node (default)
+	/*
+		if plan.rule.Type == router.DefaultRuleType
+					|| len(plan.rule.Nodes) == 1 {
+			if len(plan.fullList) != 1 {
+				panic("invalid rule nodes num %d, must 1", plan.fullList)
+			}
+			return plan.fullList
 		}
-		return plan.fullList
-	}
+	*/
 
 	switch criteria := plan.criteria.(type) {
 	case Values:
@@ -217,7 +164,7 @@ func checkUpdateExprs(exprs UpdateExprs, rule *router.Rule) {
 
 	for _, e := range exprs {
 		if e.Name.Lowered() == rule.Key {
-			panic(NewParserError("routing key can not in update expression"))
+			panic(errors.New("routing key can not in update expression"))
 		}
 	}
 }
@@ -226,10 +173,11 @@ func getRoutingPlan(statement Statement, router *router.OldRouter) (plan *Routin
 	plan = &RoutingPlan{}
 	var where *Where
 	var whereRequired bool = true
+
 	switch stmt := statement.(type) {
 	case *Insert:
 		if _, ok := stmt.Rows.(SelectStatement); ok {
-			panic(NewParserError("select in insert not allowed"))
+			panic(errors.New("select in insert not allowed"))
 		}
 
 		plan.rule = router.GetRule(String(stmt.Table))
@@ -259,7 +207,7 @@ func getRoutingPlan(statement Statement, router *router.OldRouter) (plan *Routin
 	if where != nil {
 		plan.criteria = where.Expr
 	} else if whereRequired {
-		panic(NewParserError("statements with empty `where` clause not supported"))
+		panic(errors.New("statements with empty `where` clause not supported"))
 	}
 	plan.fullList = makeList(0, len(plan.rule.Nodes))
 
@@ -273,11 +221,11 @@ func (plan *RoutingPlan) routingAnalyzeValues(vals Values) Values {
 		case ValTuple:
 			result := plan.routingAnalyzeValue(tuple[0])
 			if result != VALUE_NODE {
-				panic(NewParserError("insert is too complex"))
+				panic(errors.New("insert is too complex"))
 			}
 		default:
 			// subquery
-			panic(NewParserError("insert is too complex"))
+			panic(errors.New("insert is too complex"))
 		}
 	}
 	return vals
@@ -369,7 +317,7 @@ func (plan *RoutingPlan) findInsertShard(vals Values) int {
 		if index == -1 {
 			index = newIndex
 		} else if index != newIndex {
-			panic(NewParserError("insert has multiple shard targets"))
+			panic(errors.New("insert has multiple shard targets"))
 		}
 	}
 	return index
@@ -391,7 +339,7 @@ func (plan *RoutingPlan) adjustShardIndex(valExpr ValExpr, index int) int {
 	if s.EqualStart(value, index) {
 		index--
 		if index < 0 {
-			panic(NewParserError("invalid range sharding"))
+			panic(errors.New("invalid range sharding"))
 		}
 	}
 	return index
@@ -401,7 +349,7 @@ func (plan *RoutingPlan) getBoundValue(valExpr ValExpr) interface{} {
 	switch node := valExpr.(type) {
 	case ValTuple:
 		if len(node) != 1 {
-			panic(NewParserError("tuples not allowed as insert values"))
+			panic(errors.New("tuples not allowed as insert values"))
 		}
 		// TODO: Change parser to create single value tuples into non-tuples.
 		return plan.getBoundValue(node[0])
@@ -410,7 +358,7 @@ func (plan *RoutingPlan) getBoundValue(valExpr ValExpr) interface{} {
 	case NumVal:
 		val, err := strconv.ParseInt(string(node), 10, 64)
 		if err != nil {
-			panic(NewParserError("%s", err.Error()))
+			panic(fmt.Errorf("%s", err.Error()))
 		}
 		return val
 	case ValArg:
@@ -515,20 +463,6 @@ func differentList(l1 []int, l2 []int) []int {
 	}
 
 	return l3
-}
-
-// ParserError: To be deprecated.
-// TODO(sougou): deprecate.
-type ParserError struct {
-	Message string
-}
-
-func NewParserError(format string, args ...interface{}) ParserError {
-	return ParserError{fmt.Sprintf(format, args...)}
-}
-
-func (err ParserError) Error() string {
-	return err.Message
 }
 
 func handleError(err *error) {

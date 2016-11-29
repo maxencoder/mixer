@@ -29,22 +29,6 @@ func handleError(err *error) {
 	}
 }
 
-func EncodeValue(value interface{}) string {
-	switch val := value.(type) {
-	case int:
-		return Uint64Key(val).String()
-	case uint64:
-		return Uint64Key(val).String()
-	case int64:
-		return Uint64Key(val).String()
-	case string:
-		return val
-	case []byte:
-		return hack.String(val)
-	}
-	panic(NewKeyError("Unexpected key variable type %T", value))
-}
-
 func HashValue(value interface{}) uint64 {
 	switch val := value.(type) {
 	case int:
@@ -133,30 +117,6 @@ func (s *NumRangeShard) EqualStart(key interface{}, index int) bool {
 }
 func (s *NumRangeShard) EqualStop(key interface{}, index int) bool {
 	v := NumValue(key)
-	return s.Shards[index].End == v
-}
-
-type KeyRangeShard struct {
-	Shards []KeyRange
-}
-
-func (s *KeyRangeShard) FindForKey(key interface{}) int {
-	v := KeyspaceId(EncodeValue(key))
-	for i, r := range s.Shards {
-		if r.Contains(v) {
-			return i
-		}
-	}
-	panic(NewKeyError("Unexpected key %v, not in range", key))
-}
-
-func (s *KeyRangeShard) EqualStart(key interface{}, index int) bool {
-	v := KeyspaceId(EncodeValue(key))
-	return s.Shards[index].Start == v
-}
-
-func (s *KeyRangeShard) EqualStop(key interface{}, index int) bool {
-	v := KeyspaceId(EncodeValue(key))
 	return s.Shards[index].End == v
 }
 
