@@ -83,11 +83,7 @@ func (c *Conn) getShardList(stmt sqlparser.Statement, bindVars map[string]interf
 		return nil, nil
 	}
 
-	n := make([]*node.Node, 0, len(ns))
-	for _, name := range ns {
-		n = append(n, c.server.getNode(name))
-	}
-	return n, nil
+	return c.server.getNodes(ns), nil
 }
 
 func (c *Conn) getConn(n *node.Node, isSelect bool) (co *db.SqlConn, err error) {
@@ -135,14 +131,12 @@ func (c *Conn) getConn(n *node.Node, isSelect bool) (co *db.SqlConn, err error) 
 	return
 }
 
-func (c *Conn) getDefaultConn(isSelect bool) (*db.SqlConn, error) {
+func (c *Conn) getDefaultConn(isSelect bool) (co *db.SqlConn, err error) {
 	node := c.schema.router.DefaultRule.Nodes[0]
+
 	n := c.server.getNode(node)
 
-	var co *db.SqlConn
-	var err error
-	co, err = c.getConn(n, isSelect)
-	if err != nil {
+	if co, err = c.getConn(n, isSelect); err != nil {
 		return nil, err
 	}
 
@@ -270,7 +264,7 @@ func makeBindVars(args []interface{}) map[string]interface{} {
 	return bindVars
 }
 
-func (c *Conn) handleUnknown(sql string, args []interface{}) (*Result, error) {
+func (c *Conn) handleUnparsed(sql string, args []interface{}) (*Result, error) {
 	if c.schema == nil {
 		return nil, NewDefaultError(ER_NO_DB_ERROR)
 	}

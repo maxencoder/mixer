@@ -65,7 +65,6 @@ func checkSharding(t *testing.T, sql string, args []int, checkNodeIndex ...int) 
 		for i := range ns {
 			if ns[i] != checkNodeIndex[i] {
 				s := fmt.Sprintf("%v %v", ns, checkNodeIndex)
-				panic(sql)
 				t.Fatal(sql, s, i)
 			}
 		}
