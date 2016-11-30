@@ -28,6 +28,8 @@ type RoutingPlan struct {
 	fullList []int
 
 	bindVars map[string]interface{}
+
+	insertKeyPos int
 }
 
 /*
@@ -186,7 +188,7 @@ func getRoutingPlan(statement Statement, router *router.OldRouter) (plan *Routin
 			checkUpdateExprs(UpdateExprs(stmt.OnDup), plan.rule)
 		}
 
-		plan.criteria = plan.routingAnalyzeValues(stmt.Rows.(Values))
+		plan.criteria = plan.routingAnalyzeValues(stmt)
 		plan.fullList = makeList(0, len(plan.rule.Nodes))
 		return plan
 	case *Select:
@@ -214,12 +216,27 @@ func getRoutingPlan(statement Statement, router *router.OldRouter) (plan *Routin
 	return plan
 }
 
-func (plan *RoutingPlan) routingAnalyzeValues(vals Values) Values {
-	// Analyze first value of every item in the list
+func (plan *RoutingPlan) routingAnalyzeValues(stmt *Insert) Values {
+	var keyPos int = -1
+
+	for i, c := range stmt.Columns {
+		if c.Lowered() == plan.rule.Key {
+			keyPos = i
+			break
+		}
+	}
+	if keyPos == -1 {
+		panic("failed to find sharding key in insert")
+	}
+
+	plan.insertKeyPos = keyPos
+
+	vals := stmt.Rows.(Values)
+
 	for i := 0; i < len(vals); i++ {
 		switch tuple := vals[i].(type) {
 		case ValTuple:
-			result := plan.routingAnalyzeValue(tuple[0])
+			result := plan.routingAnalyzeValue(tuple[keyPos])
 			if result != VALUE_NODE {
 				panic(errors.New("insert is too complex"))
 			}
@@ -312,8 +329,8 @@ func (plan *RoutingPlan) findShardList(valExpr ValExpr) []int {
 func (plan *RoutingPlan) findInsertShard(vals Values) int {
 	index := -1
 	for i := 0; i < len(vals); i++ {
-		first_value_expression := vals[i].(ValTuple)[0]
-		newIndex := plan.findShard(first_value_expression)
+		value_expression := vals[i].(ValTuple)[plan.insertKeyPos]
+		newIndex := plan.findShard(value_expression)
 		if index == -1 {
 			index = newIndex
 		} else if index != newIndex {
@@ -326,23 +343,6 @@ func (plan *RoutingPlan) findInsertShard(vals Values) int {
 func (plan *RoutingPlan) findShard(valExpr ValExpr) int {
 	value := plan.getBoundValue(valExpr)
 	return plan.rule.FindNodeIndex(value)
-}
-
-func (plan *RoutingPlan) adjustShardIndex(valExpr ValExpr, index int) int {
-	value := plan.getBoundValue(valExpr)
-
-	s, ok := plan.rule.Shard.(router.RangeShard)
-	if !ok {
-		return index
-	}
-
-	if s.EqualStart(value, index) {
-		index--
-		if index < 0 {
-			panic(errors.New("invalid range sharding"))
-		}
-	}
-	return index
 }
 
 func (plan *RoutingPlan) getBoundValue(valExpr ValExpr) interface{} {

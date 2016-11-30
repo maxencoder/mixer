@@ -13,46 +13,6 @@ import (
 	"github.com/maxencoder/mixer/node"
 )
 
-type KeyError string
-
-func NewKeyError(format string, args ...interface{}) KeyError {
-	return KeyError(fmt.Sprintf(format, args...))
-}
-
-func (ke KeyError) Error() string {
-	return string(ke)
-}
-
-func handleError(err *error) {
-	if x := recover(); x != nil {
-		*err = x.(KeyError)
-	}
-}
-
-func HashValue(value interface{}) uint64 {
-	switch val := value.(type) {
-	case int:
-		return uint64(val)
-	case uint64:
-		return uint64(val)
-	case int64:
-		return uint64(val)
-	case string:
-		v, err := strconv.Atoi(val)
-		if err != nil {
-			panic(err)
-		}
-		return uint64(v)
-	case []byte:
-		v, err := strconv.Atoi(hack.String(val))
-		if err != nil {
-			panic(err)
-		}
-		return uint64(v)
-	}
-	panic(NewKeyError("Unexpected key variable type %T", value))
-}
-
 func NumValue(value interface{}) int64 {
 	switch val := value.(type) {
 	case int:
@@ -63,18 +23,18 @@ func NumValue(value interface{}) int64 {
 		return int64(val)
 	case string:
 		if v, err := strconv.ParseInt(val, 10, 64); err != nil {
-			panic(NewKeyError("invalid num format %s", v))
+			panic(fmt.Errorf("invalid num format %s", v))
 		} else {
 			return v
 		}
 	case []byte:
 		if v, err := strconv.ParseInt(hack.String(val), 10, 64); err != nil {
-			panic(NewKeyError("invalid num format %s", v))
+			panic(fmt.Errorf("invalid num format %s", v))
 		} else {
 			return v
 		}
 	}
-	panic(NewKeyError("Unexpected key variable type %T", value))
+	panic(fmt.Errorf("Unexpected key variable type %T", value))
 }
 
 type Shard interface {
@@ -92,9 +52,9 @@ type HashShard struct {
 }
 
 func (s *HashShard) FindForKey(key interface{}) int {
-	h := HashValue(key)
+	h := NumValue(key)
 
-	return int(h % uint64(s.ShardNum))
+	return int(modulo(h, int64(s.ShardNum)))
 }
 
 type NumRangeShard struct {
@@ -108,7 +68,7 @@ func (s *NumRangeShard) FindForKey(key interface{}) int {
 			return i
 		}
 	}
-	panic(NewKeyError("Unexpected key %v, not in range", key))
+	panic(fmt.Errorf("Unexpected key %v, not in range", key))
 }
 
 func (s *NumRangeShard) EqualStart(key interface{}, index int) bool {

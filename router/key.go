@@ -6,9 +6,6 @@ package router
 
 import ()
 
-// routing key
-type Key int64
-
 const (
 	MaxUint64 = ^uint64(0)            // 18446744073709551615
 	MaxInt64  = int64(MaxUint64 >> 1) // 9223372036854775807
@@ -17,6 +14,13 @@ const (
 	MaxKey = Key(MaxInt64)
 	MinKey = Key(MinInt64)
 )
+
+// routing key
+type Key int64
+
+func NewKey(k interface{}) Key {
+	return Key(NumValue(k))
+}
 
 type KeyExpr interface {
 	iKeyExpr()
