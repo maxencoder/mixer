@@ -285,6 +285,8 @@ func (c *Conn) handleUnparsed(sql string, args []interface{}) (*Result, error) {
 func (c *Conn) handleSelect(stmt *sqlparser.Select, sql string, args []interface{}) (*Result, error) {
 	bindVars := makeBindVars(args)
 
+	//plan := sqlparser.GetStmtPlan(stmt, c.schema.router, bindVars)
+
 	conns, err := c.getShardConns(true, stmt, bindVars)
 	if err != nil {
 		return nil, err

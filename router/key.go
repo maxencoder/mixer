@@ -24,10 +24,25 @@ func NewKey(k interface{}) Key {
 
 type KeyExpr interface {
 	iKeyExpr()
+	Contains(Key) bool
 }
+
+func (k *KeyList) iKeyExpr()    {}
+func (k *KeyRange) iKeyExpr()   {}
+func (k *KeyUnknown) iKeyExpr() {}
 
 type KeyList struct {
 	Keys []Key
+}
+
+func (kl *KeyList) Contains(key Key) bool {
+	// TODO: optimize
+	for _, k := range kl.Keys {
+		if k == key {
+			return true
+		}
+	}
+	return false
 }
 
 type KeyRange struct {
@@ -35,13 +50,39 @@ type KeyRange struct {
 	End   Key
 }
 
+func (kr *KeyRange) Contains(key Key) bool {
+	return kr.Start <= key && key < kr.End
+}
+
 type KeyUnknown struct{}
 
-func (k *KeyList) iKeyExpr()    {}
-func (k *KeyRange) iKeyExpr()   {}
-func (k *KeyUnknown) iKeyExpr() {}
+func (ku *KeyUnknown) Contains(key Key) bool {
+	return true
+}
 
 func KeyRangesIntersect(first, second KeyRange) bool {
 	return (first.End == MaxKey || second.Start < first.End) &&
 		(second.End == MaxKey || first.Start < second.End)
+}
+
+func KeyExprAnd(k1, k2 KeyExpr) KeyExpr {
+	return k1
+
+	/* TODO: implement
+	switch ke1 := k1.(type) {
+	case KeyUnknown, KeyRange:
+		return k2
+	case KeyList:
+		switch ke2 := k2.(type) {
+		case KeyList:
+			return interKeyList(k1
+		}
+	}
+	*/
+}
+
+func KeyExprOr(k1, k2 KeyExpr) KeyExpr {
+	return k1
+
+	// TODO: implement
 }

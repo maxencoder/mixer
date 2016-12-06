@@ -93,11 +93,11 @@ func (r *Router) GetTableRouter(name string) (*TableRouter, error) {
 	r.Lock()
 	defer r.Unlock()
 
-	r9, ok := r.tr[name]
+	tr, ok := r.tr[name]
 	if !ok {
 		return nil, fmt.Errorf("table router '%s' does not exist", name)
 	}
-	return r9, nil
+	return tr, nil
 }
 
 func (r *Router) SetTableRouter(name string, router *TableRouter) {
@@ -233,17 +233,29 @@ type TableRouter struct {
 func (r *TableRouter) FullList() []string {
 	l := r.Route.FullList()
 
-	l = dedupe(l...)
+	sort.Strings(l)
+
+	return l
+}
+
+func (r *TableRouter) FullMirrorList(isSelect bool) []string {
+	l := r.Route.FullMirrorList(isSelect)
 
 	sort.Strings(l)
 
 	return l
 }
 
+func (r *TableRouter) FindForKeys(ks []Key) *RoutingResult {
+	return r.Route.Route().FindForKeys(ks)
+}
+
 /*
 	Result of routing:
 
-	keyA -> node1, node2, etc	// node2 receives a copy of request for keyA
+	keyA -> node1, node2, etc	// node2 is a mirror node for keyA;
+								// it receives a copy of request for keyA;
+								// mirrored results are discarded by mixer
 	keyB -> node2, node3, etc
 */
 
@@ -266,6 +278,28 @@ func (r *RoutingResult) Merge(q *RoutingResult) {
 	}
 }
 
+func (r *RoutingResult) SplitByNode() map[string][]Key {
+	m := make(map[string][]Key)
+
+	for k, kr := range r.R {
+		m[kr.Node] = append(m[kr.Node], k)
+	}
+
+	return m
+}
+
+func (r *RoutingResult) SplitByMirrorNode() map[string][]Key {
+	m := make(map[string][]Key)
+
+	for k, kr := range r.R {
+		for _, mi := range kr.Mirror {
+			m[mi] = append(m[mi], k)
+		}
+	}
+
+	return m
+}
+
 /*
 	Routes
 */
@@ -273,7 +307,9 @@ func (r *RoutingResult) Merge(q *RoutingResult) {
 type Route interface {
 	FindForKeys(keys []Key) *RoutingResult
 
-	AllSelectNodes() []string
+	FullList() []string
+
+	FullMirrorList(bool) []string
 
 	LinkedTo() []RouteRef
 }
@@ -289,7 +325,11 @@ func (rf *RouteRef) Route() Route {
 }
 
 func (rf *RouteRef) FullList() []string {
-	return rf.Route().AllSelectNodes()
+	return rf.Route().FullList()
+}
+
+func (rf *RouteRef) FullMirrorList(isSelect bool) []string {
+	return rf.Route().FullMirrorList(isSelect)
 }
 
 type NodeRoute struct {
@@ -312,8 +352,12 @@ func (r *NodeRoute) LinkedTo() []RouteRef {
 	return nil
 }
 
-func (r *NodeRoute) AllSelectNodes() []string {
+func (r *NodeRoute) FullList() []string {
 	return []string{r.Node}
+}
+
+func (r *NodeRoute) FullMirrorList(isSelect bool) []string {
+	return []string{}
 }
 
 type MirrorRoute struct {
@@ -333,10 +377,9 @@ func (r *MirrorRoute) FindForKeys(keys []Key) *RoutingResult {
 		t := route.Route().FindForKeys(keys)
 
 		// on mirror side everything becomes mirrored
-		for k, kr := range t.R {
-			kr.Mirror = dedupe(append(kr.Mirror, kr.Node)...)
+		for _, kr := range t.R {
+			kr.Mirror = append(kr.Mirror, kr.Node)
 			kr.Node = ""
-			t.R[k] = kr
 		}
 
 		mr.Merge(t)
@@ -351,12 +394,26 @@ func (r *MirrorRoute) LinkedTo() []RouteRef {
 	return append(r.Mirror, r.Main)
 }
 
-func (r *MirrorRoute) AllSelectNodes() []string {
-	l := r.Main.FullList()
+func (r *MirrorRoute) FullList() []string {
+	return r.Main.FullList()
+}
 
-	if r.Kind == MIRROR_RO || r.Kind == MIRROR_ALL {
-		for _, m := range r.Mirror {
-			l = append(l, m.FullList()...)
+func (r *MirrorRoute) FullMirrorList(isSelect bool) []string {
+	l := make([]string, 0)
+
+	if isSelect {
+		if r.Kind == MIRROR_RO || r.Kind == MIRROR_ALL {
+			for _, m := range r.Mirror {
+				l = append(l, m.FullList()...)
+				l = append(l, m.FullMirrorList(isSelect)...)
+			}
+		}
+	} else {
+		if r.Kind == MIRROR_RW || r.Kind == MIRROR_ALL {
+			for _, m := range r.Mirror {
+				l = append(l, m.FullList()...)
+				l = append(l, m.FullMirrorList(isSelect)...)
+			}
 		}
 	}
 
@@ -391,9 +448,16 @@ func (r *ModuloHashRoute) LinkedTo() []RouteRef {
 	return r.Routes
 }
 
-func (r *ModuloHashRoute) AllSelectNodes() (l []string) {
+func (r *ModuloHashRoute) FullList() (l []string) {
 	for _, ro := range r.Routes {
 		l = append(l, ro.FullList()...)
+	}
+	return
+}
+
+func (r *ModuloHashRoute) FullMirrorList(isSelect bool) (l []string) {
+	for _, ro := range r.Routes {
+		l = append(l, ro.FullMirrorList(isSelect)...)
 	}
 	return
 }
@@ -452,9 +516,8 @@ func (r *LookupRoute) fetchShardKeysMap(keys []Key) (map[int][]Key, error) {
 	var buckets map[int][]Key
 
 	for _, row := range rset.Values {
-		shard := int(NumValue(row[1]))
-
-		buckets[shard] = append(buckets[shard], Key(NumValue(row[0])))
+		key, shard := Key(NumValue(row[0])), int(NumValue(row[1]))
+		buckets[shard] = append(buckets[shard], key)
 	}
 
 	return buckets, nil
@@ -586,7 +649,7 @@ func mergeKeyResult(q, r KeyResult) KeyResult {
 		t.Node = r.Node
 	}
 
-	t.Mirror = dedupe(append(q.Mirror, r.Mirror...)...)
+	t.Mirror = append(q.Mirror, r.Mirror...)
 
 	return t
 }

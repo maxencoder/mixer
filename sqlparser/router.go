@@ -20,8 +20,25 @@ const (
 	OTHER_NODE
 )
 
-type RoutingPlan struct {
-	rule *router.Rule
+type ExecPlan struct {
+	sql   string
+	stmt  Statement
+	Nodes []string
+}
+
+func (p *ExecPlan) String() string {
+	if p.sql != "" {
+		return p.sql
+	}
+	return String(p.stmt)
+}
+
+type AnalysisPlan struct {
+	rule  *router.Rule
+	table string
+
+	isInsert bool
+	isSelect bool
 
 	criteria SQLNode
 
@@ -67,10 +84,114 @@ func GetShardListIndex(sql string, r *router.OldRouter, bindVars map[string]inte
 	return GetStmtShardListIndex(stmt, r, bindVars)
 }
 
+func RouteStmt(sql string, stmt Statement, r *router.OldRouter, bindVars map[string]interface{}) (execPlans, mirrorPlans []*ExecPlan, err error) {
+	defer handleError(&err)
+
+	plan := getAnalysisPlan(stmt, r)
+
+	plan.bindVars = bindVars
+
+	ke := plan.keyExprFromPlan()
+
+	var ro router.Router
+
+	tr, err := ro.GetTableRouter(plan.table)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	switch ke := ke.(type) {
+	case *router.KeyList:
+		keyRoutes := tr.FindForKeys(ke.Keys)
+
+		for node, keys := range keyRoutes.SplitByNode() {
+			newStmt := stmt
+			newSql := sql
+
+			if plan.isInsert {
+				newStmt, err = FilterStmt(stmt, keys, plan)
+				if err != nil {
+					return nil, nil, err
+				}
+				// insert sql is transformed
+				newSql = String(newStmt)
+			}
+
+			execPlans = append(execPlans,
+				&ExecPlan{newSql, newStmt, []string{node}})
+		}
+
+		for node, keys := range keyRoutes.SplitByMirrorNode() {
+			newStmt := stmt
+			newSql := sql
+
+			if plan.isInsert {
+				newStmt, err = FilterStmt(stmt, keys, plan)
+				if err != nil {
+					return nil, nil, err
+				}
+				// insert sql is transformed
+				newSql = String(newStmt)
+			}
+
+			mirrorPlans = append(mirrorPlans,
+				&ExecPlan{newSql, newStmt, []string{node}})
+		}
+
+		return execPlans, mirrorPlans, nil
+
+	case *router.KeyUnknown:
+		if plan.isInsert {
+			panic(errors.New("unable to route unknown keys for Insert"))
+		}
+		nodes := tr.FullList()
+		mirrors := tr.FullMirrorList(plan.isSelect)
+
+		return []*ExecPlan{&ExecPlan{sql, stmt, nodes}},
+			[]*ExecPlan{&ExecPlan{sql, stmt, mirrors}}, nil
+
+	default:
+		panic(fmt.Errorf("unsupported KeyExpr type: %T", ke))
+	}
+}
+
+func FilterStmt(stmt Statement, keys []router.Key, plan *AnalysisPlan) (result Statement, err error) {
+	defer handleError(&err)
+
+	insert, ok := stmt.(*Insert)
+	if !ok {
+		return stmt, nil
+	}
+
+	new := &Insert{
+		Comments: insert.Comments,
+		Ignore:   insert.Ignore,
+		Table:    insert.Table,
+		Columns:  insert.Columns,
+		OnDup:    insert.OnDup,
+	}
+
+	var filtered Values
+	vals := insert.Rows.(Values)
+
+	for i := 0; i < len(vals); i++ {
+		tuple := vals[i].(ValTuple)
+		val := tuple[plan.insertKeyPos]
+
+		if contains(keys, plan.getKey(val)) {
+			filtered = append(filtered, tuple)
+		}
+	}
+
+	new.Rows = filtered
+
+	return new, nil
+}
+
 func GetStmtShardList(stmt Statement, r *router.OldRouter, bindVars map[string]interface{}) (nodes []string, err error) {
 	defer handleError(&err)
 
-	plan := getRoutingPlan(stmt, r)
+	plan := getAnalysisPlan(stmt, r)
 
 	plan.bindVars = bindVars
 
@@ -87,7 +208,7 @@ func GetStmtShardList(stmt Statement, r *router.OldRouter, bindVars map[string]i
 func GetStmtShardListIndex(stmt Statement, r *router.OldRouter, bindVars map[string]interface{}) (nodes []int, err error) {
 	defer handleError(&err)
 
-	plan := getRoutingPlan(stmt, r)
+	plan := getAnalysisPlan(stmt, r)
 
 	plan.bindVars = bindVars
 
@@ -96,11 +217,45 @@ func GetStmtShardListIndex(stmt Statement, r *router.OldRouter, bindVars map[str
 	return ns, nil
 }
 
-func (plan *RoutingPlan) notList(l []int) []int {
+func GetStmtPlan(stmt Statement, r *router.Router, bindVars map[string]interface{}) *router.StmtPlan {
+	return nil
+}
+
+func (plan *AnalysisPlan) notList(l []int) []int {
 	return differentList(plan.fullList, l)
 }
 
-func (plan *RoutingPlan) findConditionShard(expr BoolExpr) (shardList []int) {
+func (plan *AnalysisPlan) getKeyExpr(expr BoolExpr) router.KeyExpr {
+	switch criteria := expr.(type) {
+	case *ComparisonExpr:
+		switch criteria.Operator {
+		case "=":
+			var k router.Key
+			if plan.routingAnalyzeValue(criteria.Left) == EID_NODE {
+				k = plan.getKey(criteria.Right)
+			} else {
+				k = plan.getKey(criteria.Left)
+			}
+			return &router.KeyList{Keys: []router.Key{k}}
+		case "in":
+			return plan.getKeyList(criteria.Right)
+		case "<=>", "!=":
+			return &router.KeyUnknown{}
+		case "<", ">", "<=", ">=":
+			return &router.KeyUnknown{}
+		case "not in":
+			return &router.KeyUnknown{}
+		}
+	case *RangeCond:
+		return &router.KeyUnknown{}
+	default:
+		return &router.KeyUnknown{}
+	}
+
+	return &router.KeyUnknown{}
+}
+
+func (plan *AnalysisPlan) findConditionShard(expr BoolExpr) (shardList []int) {
 	var index int
 	switch criteria := expr.(type) {
 	case *ComparisonExpr:
@@ -130,7 +285,33 @@ func (plan *RoutingPlan) findConditionShard(expr BoolExpr) (shardList []int) {
 	return plan.fullList
 }
 
-func (plan *RoutingPlan) shardListFromPlan() (shardList []int) {
+func (plan *AnalysisPlan) keyExprFromPlan() router.KeyExpr {
+	if plan.criteria == nil {
+		return &router.KeyUnknown{}
+	}
+
+	// TODO: optimize routing if there's only one shard node (default)
+	/*
+		if plan.rule.Type == router.DefaultRuleType
+					|| len(plan.rule.Nodes) == 1 {
+			if len(plan.fullList) != 1 {
+				panic("invalid rule nodes num %d, must 1", plan.fullList)
+			}
+			return plan.fullList
+		}
+	*/
+
+	switch criteria := plan.criteria.(type) {
+	case Values:
+		return plan.getInsertKeyExpr(criteria)
+	case BoolExpr:
+		return plan.getKeyExprFromBoolExpr(criteria)
+	default:
+		return &router.KeyUnknown{}
+	}
+}
+
+func (plan *AnalysisPlan) shardListFromPlan() (shardList []int) {
 	if plan.criteria == nil {
 		return plan.fullList
 	}
@@ -171,8 +352,8 @@ func checkUpdateExprs(exprs UpdateExprs, rule *router.Rule) {
 	}
 }
 
-func getRoutingPlan(statement Statement, router *router.OldRouter) (plan *RoutingPlan) {
-	plan = &RoutingPlan{}
+func getAnalysisPlan(statement Statement, router *router.OldRouter) (plan *AnalysisPlan) {
+	plan = &AnalysisPlan{}
 	var where *Where
 	var whereRequired bool = true
 
@@ -183,6 +364,8 @@ func getRoutingPlan(statement Statement, router *router.OldRouter) (plan *Routin
 		}
 
 		plan.rule = router.GetRule(String(stmt.Table))
+		plan.table = String(stmt.Table)
+		plan.isInsert = true
 
 		if stmt.OnDup != nil {
 			checkUpdateExprs(UpdateExprs(stmt.OnDup), plan.rule)
@@ -193,16 +376,20 @@ func getRoutingPlan(statement Statement, router *router.OldRouter) (plan *Routin
 		return plan
 	case *Select:
 		plan.rule = router.GetRule(String(stmt.From[0]))
+		plan.table = String(stmt.From[0])
+		plan.isSelect = true
 		where = stmt.Where
 		whereRequired = false
 	case *Update:
 		plan.rule = router.GetRule(String(stmt.Table))
+		plan.table = String(stmt.Table)
 
 		checkUpdateExprs(stmt.Exprs, plan.rule)
 
 		where = stmt.Where
 	case *Delete:
 		plan.rule = router.GetRule(String(stmt.Table))
+		plan.table = String(stmt.Table)
 		where = stmt.Where
 	}
 
@@ -216,7 +403,7 @@ func getRoutingPlan(statement Statement, router *router.OldRouter) (plan *Routin
 	return plan
 }
 
-func (plan *RoutingPlan) routingAnalyzeValues(stmt *Insert) Values {
+func (plan *AnalysisPlan) routingAnalyzeValues(stmt *Insert) Values {
 	var keyPos int = -1
 
 	for i, c := range stmt.Columns {
@@ -248,7 +435,46 @@ func (plan *RoutingPlan) routingAnalyzeValues(stmt *Insert) Values {
 	return vals
 }
 
-func (plan *RoutingPlan) routingAnalyzeBoolean(node BoolExpr) []int {
+func (plan *AnalysisPlan) getKeyExprFromBoolExpr(node BoolExpr) router.KeyExpr {
+	switch node := node.(type) {
+	case *AndExpr:
+		left := plan.getKeyExprFromBoolExpr(node.Left)
+		right := plan.getKeyExprFromBoolExpr(node.Right)
+
+		return router.KeyExprAnd(left, right)
+	case *OrExpr:
+		left := plan.getKeyExprFromBoolExpr(node.Left)
+		right := plan.getKeyExprFromBoolExpr(node.Right)
+		return router.KeyExprOr(left, right)
+	case *ParenBoolExpr:
+		return plan.getKeyExprFromBoolExpr(node.Expr)
+	case *ComparisonExpr:
+		switch {
+		case StringIn(node.Operator, "=", "<", ">", "<=", ">=", "<=>"):
+			left := plan.routingAnalyzeValue(node.Left)
+			right := plan.routingAnalyzeValue(node.Right)
+			if (left == EID_NODE && right == VALUE_NODE) || (left == VALUE_NODE && right == EID_NODE) {
+				return plan.getKeyExpr(node)
+			}
+		case StringIn(node.Operator, "in", "not in"):
+			left := plan.routingAnalyzeValue(node.Left)
+			right := plan.routingAnalyzeValue(node.Right)
+			if left == EID_NODE && right == LIST_NODE {
+				return plan.getKeyExpr(node)
+			}
+		}
+	case *RangeCond:
+		left := plan.routingAnalyzeValue(node.Left)
+		from := plan.routingAnalyzeValue(node.From)
+		to := plan.routingAnalyzeValue(node.To)
+		if left == EID_NODE && from == VALUE_NODE && to == VALUE_NODE {
+			return plan.getKeyExpr(node)
+		}
+	}
+	return &router.KeyUnknown{}
+}
+
+func (plan *AnalysisPlan) routingAnalyzeBoolean(node BoolExpr) []int {
 	switch node := node.(type) {
 	case *AndExpr:
 		left := plan.routingAnalyzeBoolean(node.Left)
@@ -287,7 +513,7 @@ func (plan *RoutingPlan) routingAnalyzeBoolean(node BoolExpr) []int {
 	return plan.fullList
 }
 
-func (plan *RoutingPlan) routingAnalyzeValue(valExpr ValExpr) int {
+func (plan *AnalysisPlan) routingAnalyzeValue(valExpr ValExpr) int {
 	switch node := valExpr.(type) {
 	case *ColName:
 		if node.Name.Lowered() == plan.rule.Key {
@@ -306,7 +532,20 @@ func (plan *RoutingPlan) routingAnalyzeValue(valExpr ValExpr) int {
 	return OTHER_NODE
 }
 
-func (plan *RoutingPlan) findShardList(valExpr ValExpr) []int {
+func (plan *AnalysisPlan) getKeyList(valExpr ValExpr) router.KeyExpr {
+	l := &router.KeyList{Keys: []router.Key{}}
+
+	switch node := valExpr.(type) {
+	case ValTuple:
+		for _, n := range node {
+			l.Keys = append(l.Keys, plan.getKey(n))
+		}
+	}
+
+	return l
+}
+
+func (plan *AnalysisPlan) findShardList(valExpr ValExpr) []int {
 	shardset := make(map[int]bool)
 	switch node := valExpr.(type) {
 	case ValTuple:
@@ -326,7 +565,18 @@ func (plan *RoutingPlan) findShardList(valExpr ValExpr) []int {
 	return shardlist
 }
 
-func (plan *RoutingPlan) findInsertShard(vals Values) int {
+func (plan *AnalysisPlan) getInsertKeyExpr(vals Values) router.KeyExpr {
+	ks := make([]router.Key, 0)
+
+	for i := 0; i < len(vals); i++ {
+		value_expression := vals[i].(ValTuple)[plan.insertKeyPos]
+		ks = append(ks, plan.getKey(value_expression))
+	}
+
+	return &router.KeyList{Keys: ks}
+}
+
+func (plan *AnalysisPlan) findInsertShard(vals Values) int {
 	index := -1
 	for i := 0; i < len(vals); i++ {
 		value_expression := vals[i].(ValTuple)[plan.insertKeyPos]
@@ -340,12 +590,17 @@ func (plan *RoutingPlan) findInsertShard(vals Values) int {
 	return index
 }
 
-func (plan *RoutingPlan) findShard(valExpr ValExpr) int {
+func (plan *AnalysisPlan) getKey(valExpr ValExpr) router.Key {
+	value := plan.getBoundValue(valExpr)
+	return router.NewKey(value)
+}
+
+func (plan *AnalysisPlan) findShard(valExpr ValExpr) int {
 	value := plan.getBoundValue(valExpr)
 	return plan.rule.FindNodeIndex(value)
 }
 
-func (plan *RoutingPlan) getBoundValue(valExpr ValExpr) interface{} {
+func (plan *AnalysisPlan) getBoundValue(valExpr ValExpr) interface{} {
 	switch node := valExpr.(type) {
 	case ValTuple:
 		if len(node) != 1 {
@@ -463,6 +718,15 @@ func differentList(l1 []int, l2 []int) []int {
 	}
 
 	return l3
+}
+
+func contains(keys []router.Key, key router.Key) bool {
+	for _, k := range keys {
+		if k == key {
+			return true
+		}
+	}
+	return false
 }
 
 func handleError(err *error) {

@@ -407,3 +407,44 @@ func TestListSet(t *testing.T) {
 	l3 = differentList(l1, l2)
 	testCheckList(t, l3, 1, 4)
 }
+
+func TestFilterStmt(t *testing.T) {
+	var sql, expect string
+	var plan *AnalysisPlan
+	var ks []router.Key
+
+	sql = "insert into A (k, v) values (1, 2), (2, 3)"
+	expect = "insert into A(k, v) values (1, 2)"
+	ks = []router.Key{router.Key(1)}
+	plan = &AnalysisPlan{insertKeyPos: 0}
+
+	checkFilterStmt(t, sql, expect, ks, plan)
+
+	sql = `insert into A (k, v) values ("1", 2), (2, 3)`
+	expect = "insert into A(k, v) values ('1', 2)"
+	ks = []router.Key{router.Key(5), router.Key(1)}
+
+	checkFilterStmt(t, sql, expect, ks, plan)
+
+	sql = `insert into A (k, v) values ("1", 2, 3.0), (2, 3, 4.3)`
+	expect = "insert into A(k, v) values ('1', 2, 3.0), (2, 3, 4.3)"
+	ks = []router.Key{router.Key(2), router.Key(1)}
+
+	checkFilterStmt(t, sql, expect, ks, plan)
+}
+
+func checkFilterStmt(t *testing.T, sql, expect string, keys []router.Key, plan *AnalysisPlan) {
+	stmt, err := Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	filtered, err := FilterStmt(stmt, keys, plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if String(filtered) != expect {
+		t.Fatalf("expected: %s, got: %s\n", expect, String(filtered))
+	}
+}
