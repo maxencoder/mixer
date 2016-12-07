@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/maxencoder/mixer/db"
 	"github.com/maxencoder/mixer/router"
 )
 
@@ -21,16 +22,22 @@ const (
 )
 
 type ExecPlan struct {
-	sql   string
-	stmt  Statement
-	Nodes []string
+	sql string
+
+	Stmt Statement
+
+	Node string
+
+	IsMirror bool
+
+	Conn *db.SqlConn
 }
 
-func (p *ExecPlan) String() string {
+func (p *ExecPlan) Sql() string {
 	if p.sql != "" {
 		return p.sql
 	}
-	return String(p.stmt)
+	return String(p.Stmt)
 }
 
 type AnalysisPlan struct {
@@ -84,7 +91,7 @@ func GetShardListIndex(sql string, r *router.OldRouter, bindVars map[string]inte
 	return GetStmtShardListIndex(stmt, r, bindVars)
 }
 
-func RouteStmt(sql string, stmt Statement, r *router.OldRouter, bindVars map[string]interface{}) (execPlans, mirrorPlans []*ExecPlan, err error) {
+func RouteStmt(stmt Statement, sql string, r *router.OldRouter, bindVars map[string]interface{}) (execPlans []*ExecPlan, err error) {
 	defer handleError(&err)
 
 	plan := getAnalysisPlan(stmt, r)
@@ -97,7 +104,7 @@ func RouteStmt(sql string, stmt Statement, r *router.OldRouter, bindVars map[str
 
 	tr, err := ro.GetTableRouter(plan.table)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	switch ke := ke.(type) {
@@ -111,14 +118,14 @@ func RouteStmt(sql string, stmt Statement, r *router.OldRouter, bindVars map[str
 			if plan.isInsert {
 				newStmt, err = FilterStmt(stmt, keys, plan)
 				if err != nil {
-					return nil, nil, err
+					return nil, err
 				}
 				// insert sql is transformed
 				newSql = String(newStmt)
 			}
 
 			execPlans = append(execPlans,
-				&ExecPlan{newSql, newStmt, []string{node}})
+				&ExecPlan{newSql, newStmt, node, false, nil})
 		}
 
 		for node, keys := range keyRoutes.SplitByMirrorNode() {
@@ -128,27 +135,30 @@ func RouteStmt(sql string, stmt Statement, r *router.OldRouter, bindVars map[str
 			if plan.isInsert {
 				newStmt, err = FilterStmt(stmt, keys, plan)
 				if err != nil {
-					return nil, nil, err
+					return nil, err
 				}
 				// insert sql is transformed
 				newSql = String(newStmt)
 			}
 
-			mirrorPlans = append(mirrorPlans,
-				&ExecPlan{newSql, newStmt, []string{node}})
+			execPlans = append(execPlans,
+				&ExecPlan{newSql, newStmt, node, true, nil})
 		}
 
-		return execPlans, mirrorPlans, nil
+		return execPlans, nil
 
 	case *router.KeyUnknown:
 		if plan.isInsert {
 			panic(errors.New("unable to route unknown keys for Insert"))
 		}
-		nodes := tr.FullList()
-		mirrors := tr.FullMirrorList(plan.isSelect)
+		for _, node := range tr.FullList() {
+			execPlans = append(execPlans, &ExecPlan{sql, stmt, node, false, nil})
+		}
+		for _, node := range tr.FullMirrorList(plan.isSelect) {
+			execPlans = append(execPlans, &ExecPlan{sql, stmt, node, true, nil})
+		}
 
-		return []*ExecPlan{&ExecPlan{sql, stmt, nodes}},
-			[]*ExecPlan{&ExecPlan{sql, stmt, mirrors}}, nil
+		return execPlans, nil
 
 	default:
 		panic(fmt.Errorf("unsupported KeyExpr type: %T", ke))

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/maxencoder/log"
 	"github.com/maxencoder/mixer/db"
 	"github.com/maxencoder/mixer/hack"
 	"github.com/maxencoder/mixer/node"
@@ -143,6 +144,19 @@ func (c *Conn) getDefaultConn(isSelect bool) (co *db.SqlConn, err error) {
 	return co, err
 }
 
+func (c *Conn) getConns(plans []*sqlparser.ExecPlan, isSelect bool) error {
+	var err error
+
+	for _, p := range plans {
+		p.Conn, err = c.getConn(node.GetNode(p.Node), isSelect)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (c *Conn) getShardConns(isSelect bool, stmt sqlparser.Statement, bindVars map[string]interface{}) ([]*db.SqlConn, error) {
 	nodes, err := c.getShardList(stmt, bindVars)
 	if err != nil {
@@ -164,6 +178,54 @@ func (c *Conn) getShardConns(isSelect bool, stmt sqlparser.Statement, bindVars m
 	}
 
 	return conns, err
+}
+
+func (c *Conn) executePlans(plans []*sqlparser.ExecPlan) ([]*Result, error) {
+	var wg sync.WaitGroup
+	wg.Add(len(plans))
+
+	var args []interface{} // TODO: send params properly
+
+	rs := make([]interface{}, len(plans))
+
+	f := func(rs []interface{}, i int, p *sqlparser.ExecPlan) {
+		r, err := p.Conn.Execute(p.Sql(), args...)
+		if err != nil {
+			rs[i] = err
+		} else {
+			rs[i] = r
+		}
+
+		wg.Done()
+	}
+
+	for i, p := range plans {
+		go f(rs, i, p)
+	}
+
+	wg.Wait()
+
+	var err error
+	r := make([]*Result, 0, len(plans))
+	for i, v := range rs {
+		if e, ok := v.(error); ok {
+			if p := plans[i]; p.IsMirror {
+				log.Warn("exec on mirrored conn to %s failed: %s", p.Node, e)
+			} else {
+				err = e
+				break
+			}
+		}
+
+		// don't need results from mirrored conns
+		if plans[i].IsMirror {
+			continue
+		}
+
+		r = append(r, rs[i].(*Result))
+	}
+
+	return r, err
 }
 
 func (c *Conn) executeInShard(conns []*db.SqlConn, sql string, args []interface{}) ([]*Result, error) {
@@ -200,6 +262,20 @@ func (c *Conn) executeInShard(conns []*db.SqlConn, sql string, args []interface{
 	}
 
 	return r, err
+}
+
+func (c *Conn) closePlanConns(plans []*sqlparser.ExecPlan, rollback bool) {
+	if c.isInTransaction() {
+		return
+	}
+
+	for _, p := range plans {
+		if rollback {
+			p.Conn.Rollback()
+		}
+
+		p.Conn.Close()
+	}
 }
 
 func (c *Conn) closeShardConns(conns []*db.SqlConn, rollback bool) {
@@ -285,32 +361,49 @@ func (c *Conn) handleUnparsed(sql string, args []interface{}) (*Result, error) {
 func (c *Conn) handleSelect(stmt *sqlparser.Select, sql string, args []interface{}) (*Result, error) {
 	bindVars := makeBindVars(args)
 
-	//plan := sqlparser.GetStmtPlan(stmt, c.schema.router, bindVars)
-
-	conns, err := c.getShardConns(true, stmt, bindVars)
+	plans, err := sqlparser.RouteStmt(stmt, sql, c.schema.router, bindVars)
 	if err != nil {
 		return nil, err
-	} else if conns == nil {
+	}
+	if plans == nil {
 		return c.newEmptyResult(stmt), nil
 	}
 
-	if len(conns) > 1 {
+	if len(plans) > 1 {
 		if err := c.canSelectInManyShards(stmt); err != nil {
 			return nil, err
 		}
 	}
 
+	if err := c.getConns(plans, true); err != nil {
+		return nil, err
+	}
+
 	var rs []*Result
 
-	rs, err = c.executeInShard(conns, sql, args)
+	rs, err = c.executePlans(plans)
 
-	c.closeShardConns(conns, false)
+	c.closePlanConns(plans, false)
 
 	if err != nil {
 		return nil, err
 	}
 
 	return c.mergeSelectResult(rs, stmt)
+}
+
+func (c *Conn) beginPlanConns(plans []*sqlparser.ExecPlan) error {
+	if c.isInTransaction() {
+		return nil
+	}
+
+	for _, p := range plans {
+		if err := p.Conn.Begin(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *Conn) beginShardConns(conns []*db.SqlConn) error {
@@ -320,6 +413,20 @@ func (c *Conn) beginShardConns(conns []*db.SqlConn) error {
 
 	for _, co := range conns {
 		if err := co.Begin(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Conn) commitPlanConns(plans []*sqlparser.ExecPlan) error {
+	if c.isInTransaction() {
+		return nil
+	}
+
+	for _, p := range plans {
+		if err := p.Conn.Commit(); err != nil {
 			return err
 		}
 	}
@@ -344,35 +451,40 @@ func (c *Conn) commitShardConns(conns []*db.SqlConn) error {
 func (c *Conn) handleExec(stmt sqlparser.Statement, sql string, args []interface{}) (*Result, error) {
 	bindVars := makeBindVars(args)
 
-	conns, err := c.getShardConns(false, stmt, bindVars)
+	plans, err := sqlparser.RouteStmt(stmt, sql, c.schema.router, bindVars)
 	if err != nil {
 		return nil, err
-	} else if conns == nil {
+	}
+	if plans == nil {
 		return nil, nil
+	}
+
+	if err := c.getConns(plans, true); err != nil {
+		return nil, err
 	}
 
 	var rs []*Result
 
-	if len(conns) == 1 {
-		rs, err = c.executeInShard(conns, sql, args)
+	if len(plans) == 1 {
+		rs, err = c.executePlans(plans)
 	} else {
 		//for multi nodes, 2PC simple, begin, exec, commit
 		//if commit error, data maybe corrupt
 		for {
-			if err = c.beginShardConns(conns); err != nil {
+			if err = c.beginPlanConns(plans); err != nil {
 				break
 			}
 
-			if rs, err = c.executeInShard(conns, sql, args); err != nil {
+			if rs, err = c.executePlans(plans); err != nil {
 				break
 			}
 
-			err = c.commitShardConns(conns)
+			err = c.commitPlanConns(plans)
 			break
 		}
 	}
 
-	c.closeShardConns(conns, err != nil)
+	c.closePlanConns(plans, err != nil)
 
 	if err != nil {
 		return nil, err
