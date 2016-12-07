@@ -95,7 +95,8 @@ func (r *Router) GetTableRouter(name string) (*TableRouter, error) {
 
 	tr, ok := r.tr[name]
 	if !ok {
-		return nil, fmt.Errorf("table router '%s' does not exist", name)
+		return NewDefaultTableRouter(name), nil
+		//return nil, fmt.Errorf("table router '%s' does not exist", name)
 	}
 	return tr, nil
 }
@@ -226,6 +227,8 @@ type TableRouter struct {
 	DB    string
 	Table string
 	Key   string
+
+	IsDefault bool
 
 	Route RouteRef
 }
@@ -561,6 +564,16 @@ func (r *Rule) FindNodeIndex(key interface{}) int {
 func (r *Rule) String() string {
 	return fmt.Sprintf("%s.%s?key=%v&shard=%s&nodes=%s",
 		r.DB, r.Table, r.Key, r.Type, strings.Join(r.Nodes, ", "))
+}
+
+func NewDefaultTableRouter(table string) *TableRouter {
+	return &TableRouter{
+		DB:    "",
+		Table: table,
+		Key:   "",
+
+		IsDefault: true,
+	}
 }
 
 func NewDefaultRule(db string, node string) *Rule {

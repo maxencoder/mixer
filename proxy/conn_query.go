@@ -12,6 +12,7 @@ import (
 	"github.com/maxencoder/mixer/db"
 	"github.com/maxencoder/mixer/hack"
 	"github.com/maxencoder/mixer/node"
+	"github.com/maxencoder/mixer/router"
 	"github.com/maxencoder/mixer/sqlparser"
 	. "github.com/siddontang/go-mysql/mysql"
 )
@@ -451,7 +452,9 @@ func (c *Conn) commitShardConns(conns []*db.SqlConn) error {
 func (c *Conn) handleExec(stmt sqlparser.Statement, sql string, args []interface{}) (*Result, error) {
 	bindVars := makeBindVars(args)
 
-	plans, err := sqlparser.RouteStmt(stmt, sql, c.schema.router, bindVars)
+	router := &router.Router{}
+
+	plans, err := sqlparser.RouteStmt(stmt, sql, router, bindVars)
 	if err != nil {
 		return nil, err
 	}
