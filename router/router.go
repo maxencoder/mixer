@@ -667,14 +667,43 @@ func mergeKeyResult(q, r KeyResult) KeyResult {
 	return t
 }
 
-func dedupe(in ...string) []string {
+func interlist(l1, l2 []Key) (r []Key) {
+	has2 := make(map[Key]bool)
+
+	for _, k := range l2 {
+		has2[k] = true
+	}
+
+	for _, k := range l1 {
+		if has2[k] {
+			r = append(r, k)
+		}
+	}
+
+	return r
+}
+
+func unionlist(l1, l2 []Key) (r []Key) {
+	seen := make(map[Key]bool)
+
+	for _, k := range append(l1, l2...) {
+		if ok := seen[k]; !ok {
+			r = append(r, k)
+		}
+		seen[k] = true
+	}
+
+	return r
+}
+
+func dedupe(in ...string) (out []string) {
 	seen := make(map[string]bool)
-	out := make([]string, 0)
 
 	for _, s := range in {
-		if _, ok := seen[s]; !ok {
+		if ok := seen[s]; !ok {
 			out = append(out, s)
 		}
+		seen[s] = true
 	}
 
 	return out

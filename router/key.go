@@ -54,6 +54,7 @@ func (kr *KeyRange) Contains(key Key) bool {
 	return kr.Start <= key && key < kr.End
 }
 
+// KeyUnknown means any key possible
 type KeyUnknown struct{}
 
 func (ku *KeyUnknown) Contains(key Key) bool {
@@ -65,24 +66,44 @@ func KeyRangesIntersect(first, second KeyRange) bool {
 		(second.End == MaxKey || first.Start < second.End)
 }
 
-func KeyExprAnd(k1, k2 KeyExpr) KeyExpr {
-	return k1
+func KeyExprAnd(k1, k2 KeyExpr) (r KeyExpr) {
+	// TODO: do better on ranges?
 
-	/* TODO: implement
 	switch ke1 := k1.(type) {
-	case KeyUnknown, KeyRange:
+	case *KeyUnknown:
 		return k2
-	case KeyList:
+	case *KeyRange:
+		return &KeyUnknown{}
+	case *KeyList:
 		switch ke2 := k2.(type) {
-		case KeyList:
-			return interKeyList(k1
+		case *KeyList:
+			return &KeyList{Keys: interlist(ke1.Keys, ke2.Keys)}
+		case *KeyRange:
+			return &KeyUnknown{}
+		case *KeyUnknown:
+			return ke1
 		}
 	}
-	*/
+	return
 }
 
-func KeyExprOr(k1, k2 KeyExpr) KeyExpr {
-	return k1
+func KeyExprOr(k1, k2 KeyExpr) (r KeyExpr) {
+	// TODO: do better on ranges?
 
-	// TODO: implement
+	switch ke1 := k1.(type) {
+	case *KeyUnknown:
+		return k2
+	case *KeyRange:
+		return &KeyUnknown{}
+	case *KeyList:
+		switch ke2 := k2.(type) {
+		case *KeyList:
+			return &KeyList{Keys: unionlist(ke1.Keys, ke2.Keys)}
+		case *KeyRange:
+			return &KeyUnknown{}
+		case *KeyUnknown:
+			return &KeyUnknown{}
+		}
+	}
+	return r
 }
