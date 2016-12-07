@@ -132,7 +132,8 @@ func (c *Conn) HandleFieldList(table string, fieldWildcard string) ([]*Field, er
 		return nil, NewDefaultError(ER_NO_DB_ERROR)
 	}
 
-	nodeName := c.schema.router.GetRule(table).Nodes[0]
+	var nodeName string
+	//nodeName := c.schema.router.GetTableRouter(table).DefaultNode()
 
 	n := c.server.getNode(nodeName)
 
@@ -212,27 +213,33 @@ func (c *Conn) handleStmtPrepare(sql string) (int, int, interface{}, error) {
 		return 0, 0, nil, fmt.Errorf(`unsupport prepare sql "%s"`, sql)
 	}
 
-	r := c.schema.router.GetRule(tableName)
+	// XXX: not implemented
+	_ = tableName
+	return 0, 0, nil, NewDefaultError(ER_NO_DB_ERROR)
 
-	n := c.server.getNode(r.Nodes[0])
+	/*
+		r := c.schema.router.GetTableRouter(tableName)
 
-	var params, columns int
-	if co, err := n.GetMasterConn(); err != nil {
-		return 0, 0, nil, fmt.Errorf("prepare error %s", err)
-	} else {
-		defer co.Close()
+		n := c.server.getNode(r.Nodes[0])
 
-		if err = co.UseDB(c.schema.db); err != nil {
-			return 0, 0, nil, fmt.Errorf("parepre error %s", err)
-		}
-
-		if t, err := co.Prepare(sql); err != nil {
-			return 0, 0, nil, fmt.Errorf("parepre error %s", err)
+		var params, columns int
+		if co, err := n.GetMasterConn(); err != nil {
+			return 0, 0, nil, fmt.Errorf("prepare error %s", err)
 		} else {
-			params = t.ParamNum()
-			columns = t.ColumnNum()
-		}
-	}
+			defer co.Close()
 
-	return params, columns, p, nil
+			if err = co.UseDB(c.schema.db); err != nil {
+				return 0, 0, nil, fmt.Errorf("parepre error %s", err)
+			}
+
+			if t, err := co.Prepare(sql); err != nil {
+				return 0, 0, nil, fmt.Errorf("parepre error %s", err)
+			} else {
+				params = t.ParamNum()
+				columns = t.ColumnNum()
+			}
+		}
+
+		return params, columns, p, nil
+	*/
 }

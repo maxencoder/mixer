@@ -34,10 +34,6 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	s.user = cfg.User
 	s.password = cfg.Password
 
-	if err := s.parseSchemas(); err != nil {
-		return nil, err
-	}
-
 	var err error
 	netProto := "tcp"
 	if strings.Contains(netProto, "/") {
