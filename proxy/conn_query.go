@@ -71,23 +71,6 @@ func (c *Conn) handleQuery(sql string) (r *Result, err error) {
 	return
 }
 
-func (c *Conn) getShardList(stmt sqlparser.Statement, bindVars map[string]interface{}) ([]*node.Node, error) {
-	if c.schema == nil {
-		return nil, NewDefaultError(ER_NO_DB_ERROR)
-	}
-
-	ns, err := sqlparser.GetStmtShardList(stmt, c.schema.router, bindVars)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(ns) == 0 {
-		return nil, nil
-	}
-
-	return c.server.getNodes(ns), nil
-}
-
 func (c *Conn) getConn(n *node.Node, isSelect bool) (co *db.SqlConn, err error) {
 	if !c.needBeginTx() {
 		if isSelect {
@@ -156,29 +139,6 @@ func (c *Conn) getConns(plans []*sqlparser.ExecPlan, isSelect bool) error {
 	}
 
 	return nil
-}
-
-func (c *Conn) getShardConns(isSelect bool, stmt sqlparser.Statement, bindVars map[string]interface{}) ([]*db.SqlConn, error) {
-	nodes, err := c.getShardList(stmt, bindVars)
-	if err != nil {
-		return nil, err
-	} else if nodes == nil {
-		return nil, nil
-	}
-
-	conns := make([]*db.SqlConn, 0, len(nodes))
-
-	var co *db.SqlConn
-	for _, n := range nodes {
-		co, err = c.getConn(n, isSelect)
-		if err != nil {
-			break
-		}
-
-		conns = append(conns, co)
-	}
-
-	return conns, err
 }
 
 func (c *Conn) executePlans(plans []*sqlparser.ExecPlan) ([]*Result, error) {
