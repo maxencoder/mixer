@@ -78,10 +78,7 @@ func RouteStmt(stmt Statement, sql string, r *router.Router, bindVars map[string
 
 	plan.bindVars = bindVars
 
-	tr, err := r.GetTableRouter(plan.table)
-	if err != nil {
-		return nil, err
-	}
+	tr := r.GetTableRouterOrDefault(plan.table)
 
 	// TODO: optimize routing when there's only one shard node (default)
 

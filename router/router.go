@@ -27,18 +27,25 @@ const (
 type Router struct {
 	sync.Mutex
 
-	tr map[string]*TableRouter // key: "schema.table" lower case
+	DB string
+
+	tr map[string]*TableRouter // keyed by table in lower case
 
 	rt map[string]Route
 
-	DefaultNode string
+	DefaultNode        string
+	DefaultTableRouter *TableRouter
 }
 
-func NewRouter() *Router {
-	r := &Router{}
+func NewRouter(db string, defaultNode string) *Router {
+	r := &Router{DB: db}
 
 	r.rt = make(map[string]Route)
 	r.tr = make(map[string]*TableRouter)
+
+	_, _ = r.NewNodeRoute(defaultNode)
+	r.DefaultNode = defaultNode
+	r.DefaultTableRouter = r.NewDefaultTableRouter()
 
 	return r
 }
@@ -96,7 +103,7 @@ func (r *Router) GetTableRouterOrDefault(name string) *TableRouter {
 
 	tr, ok := r.tr[name]
 	if !ok {
-		return NewDefaultTableRouter(name)
+		return r.DefaultTableRouter
 	}
 	return tr
 }
@@ -130,6 +137,18 @@ func (r *Router) DeleteTableRouter(name string) error {
 	delete(r.tr, name)
 
 	return nil
+}
+
+func (r *Router) NewDefaultTableRouter() *TableRouter {
+	return &TableRouter{
+		DB:    r.DB,
+		Table: "",
+		Key:   "",
+
+		IsDefault: true,
+
+		Route: RouteRef{router: r, to: r.DefaultNode},
+	}
 }
 
 func (r *Router) NewNodeRoute(node string) (Route, error) {
@@ -229,6 +248,9 @@ func (r *Router) anythingLinkedToRoute(name string) string {
 		if tr.Route.to == name {
 			return n
 		}
+	}
+	if r.DefaultNode == name {
+		return "default router route"
 	}
 
 	return ""
@@ -551,16 +573,6 @@ func (r *LookupRoute) FullList() (l []string) {
 /*
 ... *** *** ***
 */
-
-func NewDefaultTableRouter(table string) *TableRouter {
-	return &TableRouter{
-		DB:    "",
-		Table: table,
-		Key:   "",
-
-		IsDefault: true,
-	}
-}
 
 func includeNode(nodes []string, node string) bool {
 	for _, n := range nodes {

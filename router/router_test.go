@@ -84,7 +84,7 @@ schemas :
 }
 
 func TestRouter(t *testing.T) {
-	r := NewRouter()
+	r := NewRouter("db1")
 
 	_, err := r.NewNodeRoute("node1")
 	if err != nil {
