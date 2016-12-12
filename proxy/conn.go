@@ -40,6 +40,8 @@ type Conn struct {
 
 	lastInsertId int64
 	affectedRows int64
+
+	isAdminMode bool
 }
 
 var baseConnID uint32 = 10000

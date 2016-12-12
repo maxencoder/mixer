@@ -363,9 +363,9 @@ rollback_statement:
   }
 
 admin_statement:
-  ADMIN ID '(' value_expression_list ')'
+  TO ADMIN
   {
-    $$ = &Admin{Name : string($2), Values : $4}
+    $$ = &Admin{}
   }
 
 show_statement:
