@@ -71,7 +71,7 @@ func (c *Conn) Close() error {
 		return nil
 	}
 
-	if !c.c.Closed() {
+	if c.c != nil && !c.c.Closed() {
 		c.c.Close()
 	}
 
@@ -134,6 +134,7 @@ func (c *Conn) HandleFieldList(table string, fieldWildcard string) ([]*Field, er
 		return nil, NewDefaultError(ER_NO_DB_ERROR)
 	}
 
+	// TODO
 	var nodeName string
 	//nodeName := c.schema.router.GetTableRouter(table).DefaultNode()
 

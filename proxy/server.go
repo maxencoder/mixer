@@ -88,6 +88,7 @@ func (s *Server) onConn(c net.Conn) {
 	}()
 
 	conn, err = s.newConn(c)
+
 	if err != nil {
 		log.Error("onConn error: %v", err)
 		c.Close()

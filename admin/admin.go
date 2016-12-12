@@ -1,5 +1,5 @@
 //line admin.y:6
-package sqlparser
+package admin
 
 import __yyfmt__ "fmt"
 

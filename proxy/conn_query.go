@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/maxencoder/log"
+	"github.com/maxencoder/mixer/admin"
 	"github.com/maxencoder/mixer/db"
 	"github.com/maxencoder/mixer/hack"
 	"github.com/maxencoder/mixer/node"
@@ -26,6 +27,16 @@ func (c *Conn) handleQuery(sql string) (r *Result, err error) {
 	}()
 
 	sql = strings.TrimRight(sql, ";")
+
+	if c.isAdminMode {
+		cmd, err := admin.Parse(sql)
+		if err != nil {
+			log.Info("failed to parse command: %s /* %s */", sql, err)
+			return nil, err
+		}
+
+		return c.handleAdmin(cmd, sql)
+	}
 
 	var stmt sqlparser.Statement
 
@@ -63,7 +74,7 @@ func (c *Conn) handleQuery(sql string) (r *Result, err error) {
 	case *sqlparser.Show:
 		r, err = c.handleShow(sql, v)
 	case *sqlparser.Admin:
-		r, err = c.handleAdmin(v)
+		r, err = c.handleToAdmin(v)
 	default:
 		err = fmt.Errorf("statement %T is not supported", stmt)
 	}
