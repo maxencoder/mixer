@@ -33,10 +33,10 @@ type Command interface {
 	AdmNode
 }
 
-func (*AddRoute) iCommand() {}
-func (*Alter) iCommand()    {}
-func (*Delete) iCommand()   {}
-func (*Show) iCommand()     {}
+func (*AddRoute) iCommand()   {}
+func (*AlterRoute) iCommand() {}
+func (*Delete) iCommand()     {}
+func (*Show) iCommand()       {}
 
 type AddRoute struct {
 	Name  string
@@ -47,12 +47,13 @@ func (n *AddRoute) Format(buf *TrackedBuffer) {
 	buf.Myprintf("add route %s %v", n.Name, n.Route)
 }
 
-type Alter struct {
-	Name string
+type AlterRoute struct {
+	Name  string
+	Route Route
 }
 
-func (n *Alter) Format(buf *TrackedBuffer) {
-	buf.Myprintf("alter route %s", n.Name)
+func (n *AlterRoute) Format(buf *TrackedBuffer) {
+	buf.Myprintf("alter route %s %v", n.Name, n.Route)
 }
 
 type Delete struct {
@@ -67,7 +68,7 @@ type Show struct {
 }
 
 func (n *Show) Format(buf *TrackedBuffer) {
-	buf.Myprintf("show something")
+	buf.Myprintf("show routes")
 }
 
 type Route interface {

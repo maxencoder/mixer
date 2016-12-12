@@ -101,9 +101,13 @@ add_command:
   }
 
 alter_command:
-  ALTER ROUTE route_id
+  ALTER ROUTE route_id HASH openb hash_route_def closeb
   {
-    $$ = &Alter{Name: $3}
+    $$ = &AlterRoute{Name: $3, Route: $6}
+  }
+| ALTER ROUTE route_id RANGE range_route
+  {
+    $$ = &AlterRoute{Name: $3, Route: $5}
   }
 
 delete_command:
@@ -151,7 +155,7 @@ number_inf:
   {
     n, err := strconv.ParseInt(string($1), 10, 64)
     if err != nil {
-      yylex.Error("expecting share")
+      yylex.Error("expecting int")
       return 1
     }
     $$ = RangeNum{Num: n}
