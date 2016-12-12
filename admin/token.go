@@ -36,19 +36,23 @@ func NewStringTokenizer(sql string) *Tokenizer {
 }
 
 var keywords = map[string]int{
-	"add":     ADD,
-	"alter":   ALTER,
-	"default": DEFAULT,
-	"delete":  DELETE,
-	"hash":    HASH,
-	"inf":     INF,
-	"modulo":  MODULO,
-	"range":   RANGE,
-	"route":   ROUTE,
-	"routes":  ROUTES,
-	"show":    SHOW,
-	"to":      TO,
-	"type":    TYPE,
+	"add":      ADD,
+	"alter":    ALTER,
+	"database": DATABASE,
+	"default":  DEFAULT,
+	"delete":   DELETE,
+	"hash":     HASH,
+	"inf":      INF,
+	"key":      KEY,
+	"modulo":   MODULO,
+	"range":    RANGE,
+	"route":    ROUTE,
+	"router":   ROUTER,
+	"routes":   ROUTES,
+	"show":     SHOW,
+	"table":    TABLE,
+	"to":       TO,
+	"type":     TYPE,
 }
 
 // Lex returns the next token form the Tokenizer.

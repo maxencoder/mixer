@@ -28,6 +28,20 @@ func TestValid(t *testing.T) {
 		in: "alter route r123 range (inf to 100 route btmdb-2005)",
 	}, {
 		in: "delete route r123-withdash",
+		/* * */
+	}, {
+		in: "add database router db1 (default r123)",
+	}, {
+		in: "alter database router db1 (default r123)",
+	}, {
+		in: "delete database router db1",
+		/* * */
+	}, {
+		in: "add table router db1.tableA (key columnB, route r123)",
+	}, {
+		in: "alter table router db1.tableA (key columnB, route r123)",
+	}, {
+		in: "delete table router db1.tableA",
 	}, {
 		in:  "show routes",
 		out: "show routes",
@@ -52,7 +66,8 @@ func TestValid(t *testing.T) {
 func TestInvalid(t *testing.T) {
 	checks := []string{
 		"add route r123 hash ()",
-		"add route r123 range (1.334 to 232 route b11)",
+		"add route r123 range (1 to 200 route b11,)",
+		"add route r123 range (1.334 to 200 route b11)",
 		"add route range (-100 to 100 route btmdb-2005)",
 		"add routes r123 range (infi to inf route btmdb-2005)",
 	}

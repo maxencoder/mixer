@@ -33,10 +33,16 @@ type Command interface {
 	AdmNode
 }
 
-func (*AddRoute) iCommand()   {}
-func (*AlterRoute) iCommand() {}
-func (*Delete) iCommand()     {}
-func (*Show) iCommand()       {}
+func (*AddRoute) iCommand()          {}
+func (*AddDbRouter) iCommand()       {}
+func (*AddTableRouter) iCommand()    {}
+func (*AlterRoute) iCommand()        {}
+func (*AlterDbRouter) iCommand()     {}
+func (*AlterTableRouter) iCommand()  {}
+func (*DeleteRoute) iCommand()       {}
+func (*DeleteDbRouter) iCommand()    {}
+func (*DeleteTableRouter) iCommand() {}
+func (*Show) iCommand()              {}
 
 type AddRoute struct {
 	Name  string
@@ -45,6 +51,33 @@ type AddRoute struct {
 
 func (n *AddRoute) Format(buf *TrackedBuffer) {
 	buf.Myprintf("add route %s %v", n.Name, n.Route)
+}
+
+type RouteID string
+
+func (n RouteID) Format(buf *TrackedBuffer) {
+	buf.Myprintf("%s", string(n))
+}
+
+type AddDbRouter struct {
+	Db      string
+	Default RouteID
+}
+
+func (n *AddDbRouter) Format(buf *TrackedBuffer) {
+	buf.Myprintf("add database router %s (default %v)", n.Db, n.Default)
+}
+
+type AddTableRouter struct {
+	Db    string
+	Table string
+	Key   string
+	Route RouteID
+}
+
+func (n *AddTableRouter) Format(buf *TrackedBuffer) {
+	buf.Myprintf("add table router %s.%s (key %s, route %v)",
+		n.Db, n.Table, n.Key, n.Route)
 }
 
 type AlterRoute struct {
@@ -56,12 +89,50 @@ func (n *AlterRoute) Format(buf *TrackedBuffer) {
 	buf.Myprintf("alter route %s %v", n.Name, n.Route)
 }
 
-type Delete struct {
+type AlterDbRouter struct {
+	Db      string
+	Default RouteID
+}
+
+func (n *AlterDbRouter) Format(buf *TrackedBuffer) {
+	buf.Myprintf("alter database router %s (default %v)", n.Db, n.Default)
+}
+
+type AlterTableRouter struct {
+	Db    string
+	Table string
+	Key   string
+	Route RouteID
+}
+
+func (n *AlterTableRouter) Format(buf *TrackedBuffer) {
+	buf.Myprintf("alter table router %s.%s (key %s, route %v)",
+		n.Db, n.Table, n.Key, n.Route)
+}
+
+type DeleteRoute struct {
 	Name string
 }
 
-func (n *Delete) Format(buf *TrackedBuffer) {
+func (n *DeleteRoute) Format(buf *TrackedBuffer) {
 	buf.Myprintf("delete route %s", n.Name)
+}
+
+type DeleteDbRouter struct {
+	Db string
+}
+
+func (n *DeleteDbRouter) Format(buf *TrackedBuffer) {
+	buf.Myprintf("delete database router %s", n.Db)
+}
+
+type DeleteTableRouter struct {
+	Db    string
+	Table string
+}
+
+func (n *DeleteTableRouter) Format(buf *TrackedBuffer) {
+	buf.Myprintf("delete table router %s.%s", n.Db, n.Table)
 }
 
 type Show struct {
@@ -133,13 +204,12 @@ func (n RangeNum) Format(buf *TrackedBuffer) {
 	}
 }
 
-type TableIdent string
+type TableIdent struct {
+	Db    string
+	Table string
+}
 
-func (node TableIdent) Format(buf *TrackedBuffer) {
-	name := string(node)
-	if _, ok := keywords[strings.ToLower(name)]; ok {
-		buf.Myprintf("`%s`", name)
-		return
-	}
-	buf.Myprintf("%s", name)
+type TableRouterDef struct {
+	Key   string
+	Route RouteID
 }

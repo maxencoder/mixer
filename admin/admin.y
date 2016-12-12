@@ -44,35 +44,41 @@ func forceEOF(yylex interface{}) {
   bytes2      [][]byte
   str         string
   tableIdent  TableIdent
+  routeID     RouteID
 
   hashRoute         *HashRoute
   keyRangeRoute     KeyRangeRoute
   rangeRouteList    []KeyRangeRoute
   rangeRoute        *RangeRoute
-  numberInf         RangeNum
+  rangeNum         RangeNum
+  tableRouterDef   TableRouterDef
 }
 
 %token LEX_ERROR
 %token <empty> ADD ALTER DELETE SHOW
-%token <empty> DEFAULT
-%token <empty> HASH RANGE
-%token <empty> INF MODULO TO
-%token <empty> TYPE ROUTE ROUTES
+%token <empty> DEFAULT DATABASE
+%token <empty> HASH INF KEY MODULO TO RANGE
+%token <empty> TABLE TYPE ROUTE ROUTES ROUTER
 
 %token <empty> '(' ',' ')'
 %token <bytes> ID STRING NUMBER LIST_ARG COMMENT
 
 %type <command> command
 %type <command> add_command alter_command delete_command show_command
-//%type <tableName> table_name
-//%type <tableIdent> table_id
+%type <tableIdent> table_id
+
 %type <hashRoute> hash_route_def
 %type <rangeRoute> range_route
+
 %type <rangeRouteList> range_route_list
 %type <keyRangeRoute> key_range_route
-%type <numberInf> number_inf
+
+%type <routeID> database_router_def
+%type <tableRouterDef> table_router_def
+
+%type <rangeNum> number_inf
 %type <strings> route_list
-%type <str> route_id
+%type <str> route_id, str_id
 
 %start any_command
 
@@ -91,7 +97,15 @@ command:
 | show_command
 
 add_command:
-  ADD ROUTE route_id HASH openb hash_route_def closeb
+  ADD DATABASE ROUTER str_id database_router_def
+  {
+    $$ = &AddDbRouter{Db: $4, Default: $5}
+  }
+| ADD TABLE ROUTER table_id table_router_def
+  {
+    $$ = &AddTableRouter{Db: $4.Db, Table: $4.Table, Key: $5.Key, Route: $5.Route}
+  }
+| ADD ROUTE route_id HASH openb hash_route_def closeb
   {
     $$ = &AddRoute{Name: $3, Route: $6}
   }
@@ -101,7 +115,15 @@ add_command:
   }
 
 alter_command:
-  ALTER ROUTE route_id HASH openb hash_route_def closeb
+  ALTER DATABASE ROUTER str_id database_router_def
+  {
+    $$ = &AlterDbRouter{Db: $4, Default: $5}
+  }
+| ALTER TABLE ROUTER table_id table_router_def
+  {
+    $$ = &AlterTableRouter{Db: $4.Db, Table: $4.Table, Key: $5.Key, Route: $5.Route}
+  }
+| ALTER ROUTE route_id HASH openb hash_route_def closeb
   {
     $$ = &AlterRoute{Name: $3, Route: $6}
   }
@@ -111,15 +133,35 @@ alter_command:
   }
 
 delete_command:
-  DELETE ROUTE route_id
+  DELETE DATABASE ROUTER str_id
   {
-    $$ = &Delete{Name: $3}
+    $$ = &DeleteDbRouter{Db: $4}
+  }
+| DELETE TABLE ROUTER table_id
+  {
+    $$ = &DeleteTableRouter{Db: $4.Db, Table: $4.Table}
+  }
+| DELETE ROUTE route_id
+  {
+    $$ = &DeleteRoute{Name: $3}
   }
 
 show_command:
   SHOW ROUTES
   {
     $$ = &Show{}
+  }
+
+database_router_def:
+  openb DEFAULT route_id closeb
+  {
+    $$ = RouteID($3)
+  }
+
+table_router_def:
+  openb KEY str_id ',' ROUTE route_id closeb
+  {
+    $$ = TableRouterDef{Key: $3, Route: RouteID($6)}
   }
 
 hash_route_def:
@@ -175,7 +217,19 @@ route_list:
     $$ = append($$, $3)
   }
 
+table_id:
+  str_id '.' str_id
+  {
+    $$ = TableIdent{Db: $1, Table: $3}
+  }
+
 route_id:
+  ID
+  {
+    $$ = string($1)
+  }
+
+str_id:
   ID
   {
     $$ = string($1)
