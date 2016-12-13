@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	MIRROR_RO = iota
+	MIRROR_R = iota
+	MIRROR_W
 	MIRROR_RW
-	MIRROR_ALL
 )
 
 /*
@@ -25,7 +25,9 @@ const (
 */
 
 type Router struct {
-	sync.Mutex
+	sync.RWMutex
+
+	version uint64
 
 	DB string
 
@@ -44,10 +46,32 @@ func NewRouter(db string, defaultNode string) *Router {
 	r.tr = make(map[string]*TableRouter)
 
 	_, _ = r.NewNodeRoute(defaultNode)
+
 	r.DefaultNode = defaultNode
 	r.DefaultTableRouter = r.NewDefaultTableRouter()
 
 	return r
+}
+
+func (r *Router) Clone() *Router {
+	new := &Router{DB: r.DB}
+
+	new.version = r.version + 1
+
+	new.rt = make(map[string]Route)
+	new.tr = make(map[string]*TableRouter)
+
+	for k, v := range r.tr {
+		new.tr[k] = v
+	}
+	for k, v := range r.rt {
+		new.rt[k] = v
+	}
+
+	new.DefaultNode = r.DefaultNode
+	new.DefaultTableRouter = r.DefaultTableRouter
+
+	return new
 }
 
 func (r *Router) GetRoute(name string) (ro Route, e error) {
@@ -63,8 +87,8 @@ func (r *Router) GetRoute(name string) (ro Route, e error) {
 }
 
 func (r *Router) getRoute(name string) Route {
-	r.Lock()
-	defer r.Unlock()
+	r.RLock()
+	defer r.RUnlock()
 
 	ro, ok := r.rt[name]
 	if !ok {
@@ -98,8 +122,8 @@ func (r *Router) DeleteRoute(name string) error {
 }
 
 func (r *Router) GetTableRouterOrDefault(name string) *TableRouter {
-	r.Lock()
-	defer r.Unlock()
+	r.RLock()
+	defer r.RUnlock()
 
 	tr, ok := r.tr[name]
 	if !ok {
@@ -109,8 +133,8 @@ func (r *Router) GetTableRouterOrDefault(name string) *TableRouter {
 }
 
 func (r *Router) GetTableRouter(name string) (*TableRouter, error) {
-	r.Lock()
-	defer r.Unlock()
+	r.RLock()
+	defer r.RUnlock()
 
 	tr, ok := r.tr[name]
 	if !ok {
@@ -438,14 +462,14 @@ func (r *MirrorRoute) FullMirrorList(isSelect bool) []string {
 	l := make([]string, 0)
 
 	if isSelect {
-		if r.Kind == MIRROR_RO || r.Kind == MIRROR_ALL {
+		if r.Kind == MIRROR_R || r.Kind == MIRROR_RW {
 			for _, m := range r.Mirror {
 				l = append(l, m.FullList()...)
 				l = append(l, m.FullMirrorList(isSelect)...)
 			}
 		}
 	} else {
-		if r.Kind == MIRROR_RW || r.Kind == MIRROR_ALL {
+		if r.Kind == MIRROR_W || r.Kind == MIRROR_RW {
 			for _, m := range r.Mirror {
 				l = append(l, m.FullList()...)
 				l = append(l, m.FullMirrorList(isSelect)...)
