@@ -3,6 +3,7 @@ package proxy
 import (
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,6 +22,7 @@ import (
 func (c *Conn) handleQuery(sql string) (r *Result, err error) {
 	defer func() {
 		if e := recover(); e != nil {
+			debug.PrintStack()
 			err = fmt.Errorf("execute %s error %v", sql, e)
 			return
 		}
@@ -113,7 +115,7 @@ func (c *Conn) getConn(n *node.Node, isSelect bool) (co *db.SqlConn, err error) 
 		}
 	}
 
-	if err = co.UseDB(c.schema.db); err != nil {
+	if err = co.UseDB(c.db); err != nil {
 		return
 	}
 
@@ -128,7 +130,12 @@ func (c *Conn) getConn(n *node.Node, isSelect bool) (co *db.SqlConn, err error) 
 }
 
 func (c *Conn) getDefaultConn(isSelect bool) (co *db.SqlConn, err error) {
-	node := c.schema.router.DefaultNode
+	schema := c.schema()
+	if schema == nil {
+		return nil, NewDefaultError(ER_NO_DB_ERROR)
+	}
+
+	node := schema.Router.DefaultNode
 
 	n := c.server.getNode(node)
 
@@ -333,7 +340,12 @@ func (c *Conn) handleUnparsedSelect(sql string, args []interface{}) (*Result, er
 func (c *Conn) handleSelect(stmt *sqlparser.Select, sql string, args []interface{}) (*Result, error) {
 	bindVars := makeBindVars(args)
 
-	plans, err := sqlparser.RouteStmt(stmt, sql, c.schema.router, bindVars)
+	schema := c.schema()
+	if c.schema == nil {
+		return nil, NewDefaultError(ER_NO_DB_ERROR)
+	}
+
+	plans, err := sqlparser.RouteStmt(stmt, sql, schema.Router, bindVars)
 	if err != nil {
 		return nil, err
 	}

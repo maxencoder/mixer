@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/maxencoder/log"
+	"github.com/maxencoder/mixer/conf"
 	"github.com/maxencoder/mixer/db"
 	"github.com/maxencoder/mixer/node"
 	"github.com/maxencoder/mixer/sqlparser"
@@ -31,8 +32,6 @@ type Conn struct {
 	charset string
 
 	db string
-
-	schema *Schema
 
 	txConns map[*node.Node]*db.SqlConn
 
@@ -116,10 +115,9 @@ func (c *Conn) Run() {
 //
 
 func (c *Conn) UseDB(db string) error {
-	if s := c.server.getSchema(db); s == nil {
+	if s := c.server.conf.GetSchema(db); s == nil {
 		return NewDefaultError(ER_BAD_DB_ERROR, db)
 	} else {
-		c.schema = s
 		c.db = db
 	}
 	return nil
@@ -146,7 +144,7 @@ func (c *Conn) HandleFieldList(table string, fieldWildcard string) ([]*Field, er
 	}
 	defer co.Close()
 
-	if err = co.UseDB(c.schema.db); err != nil {
+	if err = co.UseDB(c.db); err != nil {
 		return nil, err
 	}
 
@@ -245,4 +243,8 @@ func (c *Conn) handleStmtPrepare(sql string) (int, int, interface{}, error) {
 
 		return params, columns, p, nil
 	*/
+}
+
+func (c *Conn) schema() *conf.Schema {
+	return c.server.conf.GetSchema(c.db)
 }

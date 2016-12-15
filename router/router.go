@@ -280,6 +280,15 @@ func (r *Router) anythingLinkedToRoute(name string) string {
 	return ""
 }
 
+func (r *Router) FullList() []string {
+	f := []string{r.DefaultNode}
+
+	for _, tr := range r.tr {
+		f = append(f, tr.Route.FullList()...)
+	}
+	return f
+}
+
 type TableRouter struct {
 	DB    string
 	Table string

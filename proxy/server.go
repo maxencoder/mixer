@@ -6,11 +6,14 @@ import (
 	"strings"
 
 	"github.com/maxencoder/log"
+	"github.com/maxencoder/mixer/conf"
 	"github.com/maxencoder/mixer/config"
 )
 
 type Server struct {
 	cfg *config.Config
+
+	conf *conf.Conf
 
 	addr     string
 	user     string
@@ -19,16 +22,14 @@ type Server struct {
 	running bool
 
 	listener net.Listener
-
-	//nodes map[string]*node.Node
-
-	schemas map[string]*Schema
 }
 
 func NewServer(cfg *config.Config) (*Server, error) {
 	s := new(Server)
 
 	s.cfg = cfg
+
+	s.conf = conf.NewConf()
 
 	s.addr = cfg.Addr
 	s.user = cfg.User

@@ -7,6 +7,7 @@ import (
 
 	"github.com/maxencoder/log"
 	"github.com/maxencoder/mixer/hack"
+	"github.com/maxencoder/mixer/node"
 	"github.com/maxencoder/mixer/sqlparser"
 	. "github.com/siddontang/go-mysql/mysql"
 )
@@ -33,19 +34,16 @@ func (c *Conn) handleShow(sql string, stmt *sqlparser.Show) (*Result, error) {
 }
 
 func (c *Conn) handleShowDatabases() (*Resultset, error) {
-	dbs := make([]interface{}, 0, len(c.server.schemas))
-	for key := range c.server.schemas {
-		dbs = append(dbs, key)
-	}
+	dbs := c.server.conf.HandleShowDatabases()
 
 	return c.buildSimpleShowResultset(dbs, "Database")
 }
 
 func (c *Conn) handleShowTables(sql string, stmt *sqlparser.Show) (*Resultset, error) {
-	s := c.schema
+	s := c.schema()
 	if stmt.From != nil {
 		db := nstring(stmt.From)
-		s = c.server.getSchema(db)
+		s = c.server.conf.GetSchema(db)
 	}
 
 	if s == nil {
@@ -54,13 +52,13 @@ func (c *Conn) handleShowTables(sql string, stmt *sqlparser.Show) (*Resultset, e
 
 	var tables []string
 	tmap := map[string]struct{}{}
-	for _, n := range s.nodes {
-		co, err := n.GetMasterConn()
+	for _, n := range s.Router.FullList() {
+		co, err := node.GetNode(n).GetMasterConn()
 		if err != nil {
 			return nil, err
 		}
 
-		if err := co.UseDB(s.db); err != nil {
+		if err := co.UseDB(s.DB); err != nil {
 			co.Close()
 			return nil, err
 		}
@@ -86,7 +84,7 @@ func (c *Conn) handleShowTables(sql string, stmt *sqlparser.Show) (*Resultset, e
 		values[i] = tables[i]
 	}
 
-	return c.buildSimpleShowResultset(values, fmt.Sprintf("Tables_in_%s", s.db))
+	return c.buildSimpleShowResultset(values, fmt.Sprintf("Tables_in_%s", s.DB))
 }
 
 func (c *Conn) handleShowProxy(sql string, stmt *sqlparser.Show) (*Resultset, error) {
@@ -116,7 +114,6 @@ func (c *Conn) handleShowProxyConfig() (*Resultset, error) {
 	rows = append(rows, []string{"Global_Config", "User", c.server.cfg.User})
 	rows = append(rows, []string{"Global_Config", "Password", c.server.cfg.Password})
 	rows = append(rows, []string{"Global_Config", "LogLevel", c.server.cfg.LogLevel})
-	rows = append(rows, []string{"Global_Config", "Schemas_Count", fmt.Sprintf("%d", len(c.server.schemas))})
 
 	for db, schema := range c.server.schemas {
 		rows = append(rows, []string{"Schemas", "DB", db})

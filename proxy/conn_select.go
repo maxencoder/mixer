@@ -39,7 +39,7 @@ func (c *Conn) handleSimpleSelect(sql string, stmt *sqlparser.SimpleSelect) (*Re
 		r, err = c.buildSimpleSelectResult(c.connectionId, f.Name, expr.As.String())
 	case "database":
 		if c.schema != nil {
-			r, err = c.buildSimpleSelectResult(c.schema.db, f.Name, expr.As.String())
+			r, err = c.buildSimpleSelectResult(c.schema().DB, f.Name, expr.As.String())
 		} else {
 			r, err = c.buildSimpleSelectResult("NULL", f.Name, expr.As.String())
 		}
