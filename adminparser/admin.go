@@ -1,5 +1,5 @@
 //line admin.y:6
-package admin
+package adminparser
 
 import __yyfmt__ "fmt"
 

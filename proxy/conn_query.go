@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/maxencoder/log"
-	"github.com/maxencoder/mixer/admin"
+	"github.com/maxencoder/mixer/adminparser"
 	"github.com/maxencoder/mixer/db"
 	"github.com/maxencoder/mixer/hack"
 	"github.com/maxencoder/mixer/node"
@@ -31,7 +31,7 @@ func (c *Conn) handleQuery(sql string) (r *Result, err error) {
 	sql = strings.TrimRight(sql, ";")
 
 	if c.isAdminMode {
-		cmd, err := admin.Parse(sql)
+		cmd, err := adminparser.Parse(sql)
 		if err != nil {
 			log.Info("failed to parse command: %s /* %s */", sql, err)
 			return nil, err
