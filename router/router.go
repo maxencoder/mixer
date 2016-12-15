@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/maxencoder/mixer/adminparser"
 	"github.com/maxencoder/mixer/node"
 )
 
@@ -175,6 +176,24 @@ func (r *Router) NewDefaultTableRouter() *TableRouter {
 	}
 }
 
+func (r *Router) NewRoute(name string, rt adminparser.Route) (Route, error) {
+	var new Route
+	var err error
+
+	switch rt := rt.(type) {
+	case *adminparser.HashRoute:
+		new, err = r.NewModuloHashRoute(name, len(rt.Routes), rt.Routes)
+	case *adminparser.RangeRoute:
+		new, err = r.NewRangeRoute(name, rt)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return new, nil
+}
+
 func (r *Router) NewNodeRoute(node string) (Route, error) {
 	n := &NodeRoute{router: r, Node: node}
 
@@ -189,7 +208,7 @@ func (r *Router) NewNodeRoute(node string) (Route, error) {
 	return n, nil
 }
 
-func (r *Router) routeRef(to string) (RouteRef, error) {
+func (r *Router) NewRouteRef(to string) (RouteRef, error) {
 	if _, err := r.GetRoute(to); err != nil {
 		return RouteRef{}, err
 	}
@@ -198,10 +217,10 @@ func (r *Router) routeRef(to string) (RouteRef, error) {
 }
 
 func (r *Router) NewModuloHashRoute(name string, N int, routes []string) (Route, error) {
-	n := &ModuloHashRoute{router: r, N: N}
+	n := &ModuloHashRoute{name: name, router: r, N: N}
 
 	for _, ro := range routes {
-		rf, err := r.routeRef(ro)
+		rf, err := r.NewRouteRef(ro)
 
 		if err != nil {
 			return nil, err
@@ -219,17 +238,44 @@ func (r *Router) NewModuloHashRoute(name string, N int, routes []string) (Route,
 	return n, nil
 }
 
+func (r *Router) NewRangeRoute(name string, rt *adminparser.RangeRoute) (Route, error) {
+	new := &RangeRoute{name: name, router: r}
+
+	for _, ra := range rt.Ranges {
+		rf, err := r.NewRouteRef(ra.Route)
+
+		if err != nil {
+			return nil, err
+		}
+
+		new.Ranges = append(new.Ranges, Range{
+			KeyRange: KeyRange{
+				astkey2key(ra.Start, true),
+				astkey2key(ra.End, false)},
+			Route: rf,
+		})
+	}
+
+	if ex, _ := r.GetRoute(name); ex != nil {
+		return nil, fmt.Errorf("route '%s' already exists", name)
+	}
+
+	r.SetRoute(name, new)
+
+	return new, nil
+}
+
 func (r *Router) NewMirrorRoute(name string, main string, mirror []string) (Route, error) {
-	mrf, err := r.routeRef(main)
+	mrf, err := r.NewRouteRef(main)
 
 	if err != nil {
 		return nil, err
 	}
 
-	n := &MirrorRoute{router: r, Main: mrf}
+	n := &MirrorRoute{name: name, router: r, Main: mrf}
 
 	for _, ro := range mirror {
-		rf, err := r.routeRef(ro)
+		rf, err := r.NewRouteRef(ro)
 
 		if err != nil {
 			return nil, err
@@ -258,6 +304,7 @@ func (r *Router) NewLookupRoute(name string, query string) (Route, error) {
 
 	return n, nil
 }
+
 */
 
 func (r *Router) anythingLinkedToRoute(name string) string {
@@ -281,12 +328,53 @@ func (r *Router) anythingLinkedToRoute(name string) string {
 }
 
 func (r *Router) FullList() []string {
-	f := []string{r.DefaultNode}
+	f := []string{}
 
 	for _, tr := range r.tr {
 		f = append(f, tr.Route.FullList()...)
 	}
+
+	f = append(f, r.DefaultNode)
+
 	return f
+}
+
+func (r *Router) ToAst() adminparser.AdmNode {
+	return &adminparser.AddDbRouter{
+		Db:      r.DB,
+		Default: routeId(r.DefaultNode),
+	}
+}
+
+func (r *Router) ToAstNodes() (cmds []adminparser.AdmNode) {
+	cmds = append(cmds, r.ToAst())
+
+	seen := make(map[string]bool)
+
+	visit := func(route Route) {
+		if _, ok := route.(*NodeRoute); ok {
+			return
+		}
+		if seen[route.Name()] {
+			return
+		}
+		seen[route.Name()] = true
+
+		cmds = append(cmds, route.ToAst())
+	}
+
+	for _, tr := range r.tr {
+		tr.Route.Route().PostOrder(visit)
+
+		cmds = append(cmds, tr.ToAst())
+	}
+
+	// everything else defined but not referenced yet
+	for _, rt := range r.rt {
+		visit(rt)
+	}
+
+	return cmds
 }
 
 type TableRouter struct {
@@ -317,6 +405,15 @@ func (r *TableRouter) FullMirrorList(isSelect bool) []string {
 
 func (r *TableRouter) FindForKeys(ks []Key) *RoutingResult {
 	return r.Route.Route().FindForKeys(ks)
+}
+
+func (r *TableRouter) ToAst() adminparser.AdmNode {
+	return &adminparser.AddTableRouter{
+		Db:    r.DB,
+		Table: r.Table,
+		Key:   r.Key,
+		Route: routeId(r.Route.to),
+	}
 }
 
 /*
@@ -373,6 +470,8 @@ func (r *RoutingResult) SplitByMirrorNode() map[string][]Key {
 	Routes
 */
 
+type Visit func(Route)
+
 type Route interface {
 	FindForKeys(keys []Key) *RoutingResult
 
@@ -381,6 +480,12 @@ type Route interface {
 	FullMirrorList(bool) []string
 
 	LinkedTo() []RouteRef
+
+	Name() string
+
+	PostOrder(Visit)
+
+	ToAst() adminparser.AdmNode
 }
 
 type RouteRef struct {
@@ -429,8 +534,21 @@ func (r *NodeRoute) FullMirrorList(isSelect bool) []string {
 	return []string{}
 }
 
+func (r *NodeRoute) Name() string {
+	return r.Node
+}
+
+func (r *NodeRoute) PostOrder(v Visit) {
+	v(r)
+}
+
+func (r *NodeRoute) ToAst() adminparser.AdmNode {
+	return nil
+}
+
 type MirrorRoute struct {
 	router *Router
+	name   string
 
 	Kind byte
 
@@ -460,7 +578,7 @@ func (r *MirrorRoute) FindForKeys(keys []Key) *RoutingResult {
 }
 
 func (r *MirrorRoute) LinkedTo() []RouteRef {
-	return append(r.Mirror, r.Main)
+	return append([]RouteRef{r.Main}, r.Mirror...)
 }
 
 func (r *MirrorRoute) FullList() []string {
@@ -489,8 +607,28 @@ func (r *MirrorRoute) FullMirrorList(isSelect bool) []string {
 	return l
 }
 
+func (r *MirrorRoute) Name() string {
+	return r.name
+}
+
+func (r *MirrorRoute) PostOrder(v Visit) {
+	r.Main.Route().PostOrder(v)
+
+	for _, m := range r.Mirror {
+		m.Route().PostOrder(v)
+	}
+
+	v(r)
+}
+
+func (r *MirrorRoute) ToAst() adminparser.AdmNode {
+	// TODO
+	return nil
+}
+
 type ModuloHashRoute struct {
 	router *Router
+	name   string
 
 	N      int
 	Routes []RouteRef
@@ -529,6 +667,119 @@ func (r *ModuloHashRoute) FullMirrorList(isSelect bool) (l []string) {
 		l = append(l, ro.FullMirrorList(isSelect)...)
 	}
 	return
+}
+
+func (r *ModuloHashRoute) Name() string {
+	return r.name
+}
+
+func (r *ModuloHashRoute) PostOrder(v Visit) {
+	for _, n := range r.Routes {
+		n.Route().PostOrder(v)
+	}
+
+	v(r)
+}
+
+func (r *ModuloHashRoute) ToAst() adminparser.AdmNode {
+	hr := &adminparser.HashRoute{
+		Type:   "modulo",
+		Routes: make([]string, len(r.Routes)),
+	}
+	for _, ro := range r.Routes {
+		hr.Routes = append(hr.Routes, ro.Route().Name())
+	}
+
+	return &adminparser.AddRoute{
+		Name:  r.name,
+		Route: hr,
+	}
+}
+
+type RangeRoute struct {
+	router *Router
+	name   string
+
+	Ranges []Range
+}
+
+type Range struct {
+	KeyRange
+	Route RouteRef
+}
+
+func (r *RangeRoute) FindForKeys(keys []Key) *RoutingResult {
+	buckets := make(map[KeyRange][]Key)
+
+	for _, k := range keys {
+		for _, ra := range r.Ranges {
+			if ra.Contains(k) {
+				buckets[ra.KeyRange] = append(buckets[ra.KeyRange], k)
+			}
+		}
+	}
+
+	ret := NewRoutingResult()
+
+	for _, ra := range r.Ranges {
+		ret.Merge(ra.Route.Route().FindForKeys(buckets[ra.KeyRange]))
+	}
+
+	return ret
+}
+
+func (r *RangeRoute) LinkedTo() []RouteRef {
+	rf := make([]RouteRef, len(r.Ranges))
+
+	for _, ra := range r.Ranges {
+		rf = append(rf, ra.Route)
+	}
+
+	return rf
+}
+
+func (r *RangeRoute) FullList() (l []string) {
+	for _, ra := range r.Ranges {
+		l = append(l, ra.Route.FullList()...)
+	}
+	return
+}
+
+func (r *RangeRoute) FullMirrorList(isSelect bool) (l []string) {
+	for _, ra := range r.Ranges {
+		l = append(l, ra.Route.FullMirrorList(isSelect)...)
+	}
+	return
+}
+
+func (r *RangeRoute) Name() string {
+	return r.name
+}
+
+func (r *RangeRoute) PostOrder(v Visit) {
+	for _, ra := range r.Ranges {
+		ra.Route.Route().PostOrder(v)
+	}
+
+	v(r)
+}
+
+func (r *RangeRoute) ToAst() adminparser.AdmNode {
+	krr := make([]adminparser.KeyRangeRoute, len(r.Ranges))
+
+	for i, ra := range r.Ranges {
+		krr[i] = adminparser.KeyRangeRoute{
+			Start: key2astkey(ra.Start),
+			End:   key2astkey(ra.End),
+			Route: ra.Route.Route().Name(),
+		}
+	}
+
+	return &adminparser.AddRoute{
+		Name: r.name,
+		Route: &adminparser.RangeRoute{
+			Ranges: krr,
+		}}
 }
 
 type LookupRoute struct {
@@ -682,4 +933,28 @@ func modulo(i, n int64) int64 {
 		m = m + n
 	}
 	return m
+}
+
+func routeId(s string) adminparser.RouteID {
+	return adminparser.RouteID(s)
+}
+
+func key2astkey(k Key) adminparser.RangeNum {
+	if k == MaxKey || k == MinKey {
+		return adminparser.RangeNum{Inf: true}
+	}
+
+	return adminparser.RangeNum{Num: int64(k)}
+}
+
+func astkey2key(k adminparser.RangeNum, isStart bool) Key {
+	if k.Inf {
+		if isStart {
+			return MinKey
+		} else {
+			return MaxKey
+		}
+	}
+
+	return Key(k.Num)
 }

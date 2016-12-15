@@ -14,13 +14,16 @@ type Schema struct {
 }
 
 func (c *Conf) GetSchema(db string) *Schema {
-	c.RLock()
-	defer c.RUnlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	return c.schemas[db]
 }
 
 func (c *Conf) NewSchema(db string, defaultNode string) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
 	if n := node.GetNode(defaultNode); n == nil {
 		return fmt.Errorf("node %s does not exist", defaultNode)
 	}

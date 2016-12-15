@@ -115,29 +115,31 @@ func (c *Conn) handleShowProxyConfig() (*Resultset, error) {
 	rows = append(rows, []string{"Global_Config", "Password", c.server.cfg.Password})
 	rows = append(rows, []string{"Global_Config", "LogLevel", c.server.cfg.LogLevel})
 
-	for db, schema := range c.server.schemas {
+	for _, db := range c.server.conf.Schemas() {
 		rows = append(rows, []string{"Schemas", "DB", db})
 
 		var nodeNames []string
 		var nodeRows [][]string
-		for name, node := range schema.nodes {
-			nodeNames = append(nodeNames, name)
-			var nodeSection = fmt.Sprintf("Schemas[%s]-Node[ %v ]", db, name)
+		/*
+			for name, node := range schema.nodes {
+				nodeNames = append(nodeNames, name)
+				var nodeSection = fmt.Sprintf("Schemas[%s]-Node[ %v ]", db, name)
 
-			if node.Master() != nil {
-				nodeRows = append(nodeRows, []string{nodeSection, "Master", node.Master().String()})
+				if node.Master() != nil {
+					nodeRows = append(nodeRows, []string{nodeSection, "Master", node.Master().String()})
+				}
+
+				if node.Slave() != nil {
+					nodeRows = append(nodeRows, []string{nodeSection, "Slave", node.Slave().String()})
+				}
+				nodeRows = append(nodeRows, []string{nodeSection, "Last_Master_Ping", fmt.Sprintf("%v", node.LastMasterPing().Unix())})
+
+				nodeRows = append(nodeRows, []string{nodeSection, "Last_Slave_Ping", fmt.Sprintf("%v", node.LastSlavePing().Unix())})
+
+				nodeRows = append(nodeRows, []string{nodeSection, "down_after_noalive", fmt.Sprintf("%v", node.DownAfterNoAlive())})
+
 			}
-
-			if node.Slave() != nil {
-				nodeRows = append(nodeRows, []string{nodeSection, "Slave", node.Slave().String()})
-			}
-			nodeRows = append(nodeRows, []string{nodeSection, "Last_Master_Ping", fmt.Sprintf("%v", node.LastMasterPing().Unix())})
-
-			nodeRows = append(nodeRows, []string{nodeSection, "Last_Slave_Ping", fmt.Sprintf("%v", node.LastSlavePing().Unix())})
-
-			nodeRows = append(nodeRows, []string{nodeSection, "down_after_noalive", fmt.Sprintf("%v", node.DownAfterNoAlive())})
-
-		}
+		*/
 		rows = append(rows, []string{fmt.Sprintf("Schemas[%s]", db), "Nodes_List", strings.Join(nodeNames, ",")})
 
 		rows = append(rows, nodeRows...)
