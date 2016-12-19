@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -28,7 +29,8 @@ nodes :
     user: root
     password:
     master : 127.0.0.1:3306
-    slave : 
+    slaves : 
+      - 127.0.0.1:3306
 - 
     name : node2
     down_after_noalive : 300
@@ -36,7 +38,8 @@ nodes :
     user: root
     password:
     master : 127.0.0.1:3307
-
+    slaves : 
+      - 127.0.0.1:3307
 - 
     name : node3 
     down_after_noalive : 300
@@ -44,7 +47,15 @@ nodes :
     user: root
     password:
     master : 127.0.0.1:3308
+    slaves : 
+      - 127.0.0.1:3308
 `)
+
+var adminConf = `
+	to admin;
+
+	add database router mixer (default node1);
+`
 
 func newTestServer(t *testing.T) *Server {
 	f := func() {
@@ -65,11 +76,41 @@ func newTestServer(t *testing.T) *Server {
 		go testServer.Run()
 
 		time.Sleep(1 * time.Second)
+
+		testDB, err := db.Open("127.0.0.1:4000", "root", "", "")
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		c, err := testDB.GetConn()
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, s := range strings.Split(adminConf, ";") {
+			s = strings.TrimSpace(s)
+
+			if s == "" {
+				continue
+			}
+
+			_, err = c.Execute(s)
+
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 
 	testServerOnce.Do(f)
 
 	return testServer
+}
+
+func Test1(t *testing.T) {
+	newTestServer(t)
 }
 
 func newTestDB(t *testing.T) *db.DB {

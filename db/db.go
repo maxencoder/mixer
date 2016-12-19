@@ -98,11 +98,13 @@ func (db *DB) newConn() (*client.Conn, error) {
 		return nil, err
 	}
 
-	// TODO: we can do this in client.Connect during handshake
-	// but that requires client patching
-	if err := co.SetCharset(DEFAULT_CHARSET); err != nil {
-		return nil, err
-	}
+	/*
+		// TODO: we can do this in client.Connect during handshake
+		// but that requires client patching
+		if err := co.SetCharset(DEFAULT_CHARSET); err != nil {
+			return nil, err
+		}
+	*/
 
 	return co, nil
 }
