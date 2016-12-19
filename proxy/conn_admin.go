@@ -28,7 +28,6 @@ func (c *Conn) handleAdmin(cmd adminparser.Command, sql string) (*Result, error)
 		return nil, fmt.Errorf("unknown command")
 
 		/*
-		   func (*AddTableRouter) iCommand()    {}
 		   func (*AlterRoute) iCommand()        {}
 		   func (*AlterDbRouter) iCommand()     {}
 		   func (*AlterTableRouter) iCommand()  {}
@@ -38,6 +37,11 @@ func (c *Conn) handleAdmin(cmd adminparser.Command, sql string) (*Result, error)
 		*/
 	}
 
+	return nil, nil
+}
+
+func (c *Conn) handleConfigChange(cmd adminparser.Command, sql string) (*Result, error) {
+	// TODO
 	return nil, nil
 }
 
@@ -144,6 +148,7 @@ func (c *Conn) adminShowRoutes(cmd *adminparser.Show) (*Resultset, error) {
 
 func strings2_to_interfaces2(rows [][]string, nrColumns int) [][]interface{} {
 	var values [][]interface{} = make([][]interface{}, len(rows))
+
 	for i := range rows {
 		values[i] = make([]interface{}, nrColumns)
 		for j := range rows[i] {

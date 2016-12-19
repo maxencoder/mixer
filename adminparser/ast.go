@@ -146,8 +146,9 @@ type Route interface {
 	iRoute()
 }
 
-func (*HashRoute) iRoute()  {}
-func (*RangeRoute) iRoute() {}
+func (*HashRoute) iRoute()   {}
+func (*MirrorRoute) iRoute() {}
+func (*RangeRoute) iRoute()  {}
 
 type HashRoute struct {
 	Type   string
@@ -162,6 +163,24 @@ func (n *HashRoute) Format(buf *TrackedBuffer) {
 // HashRoute.Type
 const (
 	ModuloStr = "modulo"
+)
+
+type MirrorRoute struct {
+	Kind    string
+	Main    string
+	Mirrors []string
+}
+
+func (n *MirrorRoute) Format(buf *TrackedBuffer) {
+	buf.Myprintf("mirror (kind %s, route %s, mirrors %s)",
+		n.Kind, n.Main, strings.Join(n.Mirrors, ", "))
+}
+
+// MirrorRoute.Kind
+const (
+	MirrorR  = "r"
+	MirrorW  = "w"
+	MirrorRW = "rw"
 )
 
 type RangeRoute struct {

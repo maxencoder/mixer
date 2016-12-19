@@ -40,18 +40,20 @@ type Router struct {
 	DefaultTableRouter *TableRouter
 }
 
-func NewRouter(db string, defaultNode string) *Router {
+func NewRouter(db string, defaultNode string) (*Router, error) {
 	r := &Router{DB: db}
 
 	r.rt = make(map[string]Route)
 	r.tr = make(map[string]*TableRouter)
 
-	_, _ = r.NewNodeRoute(defaultNode)
+	if _, err := r.NewRouteRef(defaultNode); err != nil {
+		return nil, err
+	}
 
 	r.DefaultNode = defaultNode
 	r.DefaultTableRouter = r.NewDefaultTableRouter()
 
-	return r
+	return r, nil
 }
 
 func (r *Router) Clone() *Router {
@@ -96,6 +98,15 @@ func (r *Router) getRoute(name string) Route {
 		panic(fmt.Errorf("route '%s' does not exist", name))
 	}
 	return ro
+}
+
+func (r *Router) routeExists(name string) bool {
+	r.RLock()
+	defer r.RUnlock()
+
+	_, ok := r.rt[name]
+
+	return ok
 }
 
 func (r *Router) SetRoute(name string, route Route) {
@@ -183,6 +194,8 @@ func (r *Router) NewRoute(name string, rt adminparser.Route) (Route, error) {
 	switch rt := rt.(type) {
 	case *adminparser.HashRoute:
 		new, err = r.NewModuloHashRoute(name, len(rt.Routes), rt.Routes)
+	case *adminparser.MirrorRoute:
+		new, err = r.NewMirrorRoute(name, rt.Kind, rt.Main, rt.Mirrors)
 	case *adminparser.RangeRoute:
 		new, err = r.NewRangeRoute(name, rt)
 	}
@@ -195,9 +208,7 @@ func (r *Router) NewRoute(name string, rt adminparser.Route) (Route, error) {
 }
 
 func (r *Router) NewNodeRoute(node string) (Route, error) {
-	n := &NodeRoute{router: r, Node: node}
-
-	// TODO: check node exists
+	n := &NodeRoute{Node: node}
 
 	if ex, _ := r.GetRoute(node); ex != nil {
 		return nil, fmt.Errorf("route '%s' already exists", node)
@@ -210,6 +221,12 @@ func (r *Router) NewNodeRoute(node string) (Route, error) {
 
 func (r *Router) NewRouteRef(to string) (RouteRef, error) {
 	if _, err := r.GetRoute(to); err != nil {
+		if n := node.GetNode(to); n != nil {
+			r.NewNodeRoute(to)
+
+			return RouteRef{router: r, to: to}, nil
+		}
+
 		return RouteRef{}, err
 	}
 
@@ -265,7 +282,7 @@ func (r *Router) NewRangeRoute(name string, rt *adminparser.RangeRoute) (Route, 
 	return new, nil
 }
 
-func (r *Router) NewMirrorRoute(name string, main string, mirror []string) (Route, error) {
+func (r *Router) NewMirrorRoute(name string, kind string, main string, mirror []string) (Route, error) {
 	mrf, err := r.NewRouteRef(main)
 
 	if err != nil {
@@ -273,6 +290,17 @@ func (r *Router) NewMirrorRoute(name string, main string, mirror []string) (Rout
 	}
 
 	n := &MirrorRoute{name: name, router: r, Main: mrf}
+
+	switch kind {
+	case adminparser.MirrorR:
+		n.Kind = MIRROR_R
+	case adminparser.MirrorW:
+		n.Kind = MIRROR_W
+	case adminparser.MirrorRW:
+		n.Kind = MIRROR_RW
+	default:
+		return nil, fmt.Errorf("unknown mirror type %s", kind)
+	}
 
 	for _, ro := range mirror {
 		rf, err := r.NewRouteRef(ro)
@@ -507,8 +535,6 @@ func (rf *RouteRef) FullMirrorList(isSelect bool) []string {
 }
 
 type NodeRoute struct {
-	router *Router
-
 	Node string
 }
 
@@ -622,8 +648,27 @@ func (r *MirrorRoute) PostOrder(v Visit) {
 }
 
 func (r *MirrorRoute) ToAst() adminparser.AdmNode {
-	// TODO
-	return nil
+	n := &adminparser.MirrorRoute{
+		Main: r.Main.to,
+	}
+
+	switch r.Kind {
+	case MIRROR_R:
+		n.Kind = adminparser.MirrorR
+	case MIRROR_W:
+		n.Kind = adminparser.MirrorW
+	case MIRROR_RW:
+		n.Kind = adminparser.MirrorRW
+	}
+
+	for _, m := range r.Mirror {
+		n.Mirrors = append(n.Mirrors, m.to)
+	}
+
+	return &adminparser.AddRoute{
+		Name:  r.name,
+		Route: n,
+	}
 }
 
 type ModuloHashRoute struct {

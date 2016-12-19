@@ -28,7 +28,11 @@ func (c *Conf) NewSchema(db string, defaultNode string) error {
 		return fmt.Errorf("node %s does not exist", defaultNode)
 	}
 
-	r := router.NewRouter(db, defaultNode)
+	r, err := router.NewRouter(db, defaultNode)
+
+	if err != nil {
+		return err
+	}
 
 	c.schemas[db] = &Schema{DB: db, Router: r}
 

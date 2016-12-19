@@ -47,9 +47,10 @@ func forceEOF(yylex interface{}) {
   routeID     RouteID
 
   hashRoute         *HashRoute
+  mirrorRoute       *MirrorRoute
+  rangeRoute        *RangeRoute
   keyRangeRoute     KeyRangeRoute
   rangeRouteList    []KeyRangeRoute
-  rangeRoute        *RangeRoute
   rangeNum         RangeNum
   tableRouterDef   TableRouterDef
 }
@@ -57,7 +58,7 @@ func forceEOF(yylex interface{}) {
 %token LEX_ERROR
 %token <empty> ADD ALTER DELETE SHOW
 %token <empty> DEFAULT DATABASE
-%token <empty> HASH INF KEY MODULO TO RANGE
+%token <empty> HASH INF KEY KIND MIRROR MIRRORS MODULO TO RANGE
 %token <empty> TABLE TYPE ROUTE ROUTES ROUTER
 
 %token <empty> '(' ',' ')'
@@ -68,6 +69,7 @@ func forceEOF(yylex interface{}) {
 %type <tableIdent> table_id
 
 %type <hashRoute> hash_route_def
+%type <mirrorRoute> mirror_route_def
 %type <rangeRoute> range_route
 
 %type <rangeRouteList> range_route_list
@@ -112,6 +114,10 @@ add_command:
 | ADD ROUTE route_id RANGE range_route
   {
     $$ = &AddRoute{Name: $3, Route: $5}
+  }
+| ADD ROUTE route_id MIRROR openb mirror_route_def closeb
+  {
+    $$ = &AddRoute{Name: $3, Route: $6}
   }
 
 alter_command:
@@ -168,6 +174,12 @@ hash_route_def:
   TYPE MODULO ',' ROUTE route_list
   {
     $$ = &HashRoute{Type: ModuloStr, Routes: $5}
+  }
+
+mirror_route_def:
+  KIND ID ',' ROUTE route_id ',' MIRRORS route_list
+  {
+    $$ = &MirrorRoute{Kind: string($2), Main: $5, Mirrors: $8}
   }
 
 range_route:

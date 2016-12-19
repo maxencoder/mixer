@@ -10,6 +10,10 @@ import (
 // all nodes
 var pool = &Pool{}
 
+func FullList() []string {
+	return pool.FullList()
+}
+
 func GetNode(name string) *Node {
 	return pool.GetNode(name)
 }
@@ -21,6 +25,19 @@ func ParseNodes(cfg *config.Config) error {
 type Pool struct {
 	sync.Mutex
 	nodes map[string]*Node
+}
+
+func (p *Pool) FullList() []string {
+	p.Lock()
+	defer p.Unlock()
+
+	var l []string
+
+	for n, _ := range p.nodes {
+		l = append(l, n)
+	}
+
+	return l
 }
 
 func (p *Pool) GetNode(name string) *Node {
