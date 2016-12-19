@@ -728,11 +728,11 @@ func (r *ModuloHashRoute) PostOrder(v Visit) {
 
 func (r *ModuloHashRoute) ToAst() adminparser.AdmNode {
 	hr := &adminparser.HashRoute{
-		Type:   "modulo",
+		Type:   adminparser.ModuloStr,
 		Routes: make([]string, len(r.Routes)),
 	}
-	for _, ro := range r.Routes {
-		hr.Routes = append(hr.Routes, ro.Route().Name())
+	for i, ro := range r.Routes {
+		hr.Routes[i] = ro.to
 	}
 
 	return &adminparser.AddRoute{
