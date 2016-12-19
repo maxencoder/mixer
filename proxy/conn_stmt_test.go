@@ -5,7 +5,10 @@ import (
 )
 
 func TestStmt_DropTable(t *testing.T) {
-	n := newTestServer(t).schemas["mixer"].nodes["node1"]
+	server := newTestServer(t)
+
+	n := server.getNode("node1")
+
 	c, err := n.GetMasterConn()
 	if err != nil {
 		t.Fatal(err)
@@ -29,7 +32,9 @@ func TestStmt_CreateTable(t *testing.T) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8`
 
 	server := newTestServer(t)
-	n := server.schemas["mixer"].nodes["node1"]
+
+	n := server.getNode("node1")
+
 	c, err := n.GetMasterConn()
 	if err != nil {
 		t.Fatal(err)

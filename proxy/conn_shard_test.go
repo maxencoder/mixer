@@ -17,19 +17,8 @@ func testShard_Insert(t *testing.T, table string, node string, id int, str strin
 	} else if r.AffectedRows != 1 {
 		t.Fatal(r.AffectedRows)
 	}
-	s = fmt.Sprintf(`select str from %s where id = %d`, table, id)
 
-	n := newTestServer(t).schemas["mixer"].nodes[node]
-	c, err := n.GetMasterConn()
-	if err != nil {
-		t.Fatal(s, err)
-	} else {
-		if r, err := c.Execute(s); err != nil {
-			t.Fatal(s, err)
-		} else if v, _ := r.GetString(0, 0); v != str {
-			t.Fatal(s, v)
-		}
-	}
+	s = fmt.Sprintf(`select str from %s where id = %d`, table, id)
 
 	if r, err := conn.Execute(s); err != nil {
 		t.Fatal(s, err)
@@ -78,19 +67,8 @@ func testShard_StmtInsert(t *testing.T, table string, node string, id int, str s
 	} else if r.AffectedRows != 1 {
 		t.Fatal(r.AffectedRows)
 	}
-	s = fmt.Sprintf(`select str from %s where id = ?`, table)
 
-	n := newTestServer(t).schemas["mixer"].nodes[node]
-	c, err := n.GetMasterConn()
-	if err != nil {
-		t.Fatal(s, err)
-	} else {
-		if r, err := c.Execute(s, id); err != nil {
-			t.Fatal(s, err)
-		} else if v, _ := r.GetString(0, 0); v != str {
-			t.Fatal(s, v)
-		}
-	}
+	s = fmt.Sprintf(`select str from %s where id = ?`, table)
 
 	if r, err := conn.Execute(s, id); err != nil {
 		t.Fatal(s, err)
@@ -135,10 +113,9 @@ func TestShard_DeleteHashTable(t *testing.T) {
 
 	server := newTestServer(t)
 
-	for _, n := range server.schemas["mixer"].nodes {
-		if n.String() != "node2" && n.String() != "node3" {
-			continue
-		}
+	for _, no := range []string{"node2", "node3"} {
+		n := server.getNode(no)
+
 		c, err := n.GetMasterConn()
 		if err != nil {
 			t.Fatal(err)
@@ -162,10 +139,9 @@ func TestShard_CreateHashTable(t *testing.T) {
 
 	server := newTestServer(t)
 
-	for _, n := range server.schemas["mixer"].nodes {
-		if n.String() != "node2" && n.String() != "node3" {
-			continue
-		}
+	for _, no := range []string{"node2", "node3"} {
+		n := server.getNode(no)
+
 		c, err := n.GetMasterConn()
 		if err != nil {
 			t.Fatal(err)
@@ -270,10 +246,9 @@ func TestShard_DeleteRangeTable(t *testing.T) {
 
 	server := newTestServer(t)
 
-	for _, n := range server.schemas["mixer"].nodes {
-		if n.String() != "node2" && n.String() != "node3" {
-			continue
-		}
+	for _, no := range []string{"node2", "node3"} {
+		n := server.getNode(no)
+
 		c, err := n.GetMasterConn()
 		if err != nil {
 			t.Fatal(err)
@@ -297,10 +272,9 @@ func TestShard_CreateRangeTable(t *testing.T) {
 
 	server := newTestServer(t)
 
-	for _, n := range server.schemas["mixer"].nodes {
-		if n.String() != "node2" && n.String() != "node3" {
-			continue
-		}
+	for _, no := range []string{"node2", "node3"} {
+		n := server.getNode(no)
+
 		c, err := n.GetMasterConn()
 		if err != nil {
 			t.Fatal(err)

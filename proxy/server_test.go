@@ -44,26 +44,6 @@ nodes :
     user: root
     password:
     master : 127.0.0.1:3308
-
-schemas :
--
-    db : mixer 
-    nodes: [node1, node2, node3]
-    rules:
-        default: node1 
-        shard:
-            -   
-                table: mixer_test_shard_hash
-                key: id
-                nodes: [node2, node3]
-                type: hash
-
-            -   
-                table: mixer_test_shard_range
-                key: id
-                nodes: [node2, node3]
-                range: -10000-
-                type: range
 `)
 
 func newTestServer(t *testing.T) *Server {
