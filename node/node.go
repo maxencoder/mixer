@@ -21,7 +21,12 @@ const (
 type Node struct {
 	sync.Mutex
 
-	cfg config.NodeConfig
+	name string
+
+	user     string
+	password string
+
+	idleConns int
 
 	master *db.DB
 	slave  *db.DB
@@ -32,27 +37,33 @@ type Node struct {
 	lastSlavePing  time.Time
 }
 
-func NewNode(cfg config.NodeConfig) (*Node, error) {
+func NewNode(name, user, password string, idleConns, downAfterNoAlive int, master string, slaves []string) (*Node, error) {
 	n := new(Node)
-	n.cfg = cfg
 
-	n.downAfterNoAlive = time.Duration(cfg.DownAfterNoAlive) * time.Second
+	n.name = name
 
-	if len(cfg.Master) == 0 {
+	n.user = user
+	n.password = password
+
+	n.idleConns = idleConns
+
+	n.downAfterNoAlive = time.Duration(downAfterNoAlive) * time.Second
+
+	if len(master) == 0 {
 		return nil, fmt.Errorf("node must have master defined")
 	}
 
 	var err error
-	if n.master, err = n.openDB(cfg.Master); err != nil {
+	if n.master, err = n.openDB(master); err != nil {
 		return nil, err
 	}
 
-	if len(cfg.Slaves) == 0 {
+	if len(slaves) == 0 {
 		return nil, fmt.Errorf("node must have at least one slave defined")
 	}
 
 	// random slave
-	slave := cfg.Slaves[rand.Intn(len(cfg.Slaves))]
+	slave := slaves[rand.Intn(len(slaves))]
 	if n.slave, err = n.openDB(slave); err != nil {
 		log.Error(err.Error())
 		n.slave = nil
@@ -61,6 +72,19 @@ func NewNode(cfg config.NodeConfig) (*Node, error) {
 	go n.run()
 
 	return n, nil
+}
+
+func NewNodeFromConfig(cfg config.NodeConfig) (*Node, error) {
+
+	return NewNode(
+		cfg.Name,
+		cfg.User,
+		cfg.Password,
+		cfg.IdleConns,
+		cfg.DownAfterNoAlive,
+		cfg.Master,
+		cfg.Slaves,
+	)
 }
 
 func (n *Node) run() {
@@ -83,7 +107,7 @@ func (n *Node) run() {
 }
 
 func (n *Node) String() string {
-	return n.cfg.Name
+	return n.name
 }
 
 func (n *Node) GetMasterConn() (*db.SqlConn, error) {
@@ -160,12 +184,12 @@ func (n *Node) checkSlave() {
 }
 
 func (n *Node) openDB(addr string) (*db.DB, error) {
-	db, err := db.Open(addr, n.cfg.User, n.cfg.Password, "")
+	db, err := db.Open(addr, n.user, n.password, "")
 	if err != nil {
 		return nil, err
 	}
 
-	db.SetMaxIdleConnNum(n.cfg.IdleConns)
+	db.SetMaxIdleConnNum(n.idleConns)
 	return db, nil
 }
 

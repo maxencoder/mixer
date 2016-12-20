@@ -1,57 +1,34 @@
 package router
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/maxencoder/mixer/adminparser"
-	"github.com/maxencoder/mixer/config"
 	"github.com/maxencoder/mixer/node"
 )
 
-var testConfigData = []byte(`
-addr : 127.0.0.1:4000
-user : root
-password : 
-
-nodes :
-- 
-    name : node1 
-    down_after_noalive : 300
-    idle_conns : 16
-    user: root
-    password:
-    master : 127.0.0.1:3306
-    slaves : 
-      - 127.0.0.1:3306
-- 
-    name : node2
-    down_after_noalive : 300
-    idle_conns : 16
-    user: root
-    password:
-    master : 127.0.0.1:3307
-    slaves : 
-      - 127.0.0.1:3307
-- 
-    name : node3 
-    down_after_noalive : 300
-    idle_conns : 16
-    user: root
-    password:
-    master : 127.0.0.1:3308
-    slaves : 
-      - 127.0.0.1:3308
-`)
-
 func init() {
-	cfg, err := config.ParseConfigData(testConfigData)
-	if err != nil {
-		panic(err)
-	}
+	node.InitPool()
 
-	if err := node.ParseNodes(cfg); err != nil {
-		panic(err)
+	for i := 0; i < 10; i++ {
+		name := fmt.Sprintf("node%d", i)
+		n, err := node.NewNode(
+			name,
+			"root",
+			"",
+			4,
+			300,
+			"127.0.0.1:3306",
+			[]string{"127.0.0.1:3307"},
+		)
+
+		if err != nil {
+			panic(err)
+		}
+
+		node.SetNode(name, n)
 	}
 }
 

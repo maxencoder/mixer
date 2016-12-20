@@ -18,6 +18,14 @@ func GetNode(name string) *Node {
 	return pool.GetNode(name)
 }
 
+func SetNode(name string, n *Node) {
+	pool.SetNode(name, n)
+}
+
+func InitPool() {
+	pool.nodes = make(map[string]*Node)
+}
+
 func ParseNodes(cfg *config.Config) error {
 	return pool.ParseNodes(cfg)
 }
@@ -47,6 +55,13 @@ func (p *Pool) GetNode(name string) *Node {
 	return p.nodes[name]
 }
 
+func (p *Pool) SetNode(name string, n *Node) {
+	p.Lock()
+	defer p.Unlock()
+
+	p.nodes[name] = n
+}
+
 func (p *Pool) ParseNodes(cfg *config.Config) error {
 	p.Lock()
 	defer p.Unlock()
@@ -58,7 +73,7 @@ func (p *Pool) ParseNodes(cfg *config.Config) error {
 			return fmt.Errorf("duplicate node [%s].", v.Name)
 		}
 
-		n, err := NewNode(v)
+		n, err := NewNodeFromConfig(v)
 
 		if err != nil {
 			return err

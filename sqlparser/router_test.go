@@ -1,73 +1,115 @@
 package sqlparser
 
 import (
-	"github.com/maxencoder/mixer/config"
-	"github.com/maxencoder/mixer/router"
-
 	"fmt"
+	"sort"
 	"testing"
+
+	"github.com/maxencoder/mixer/adminparser"
+	"github.com/maxencoder/mixer/node"
+	"github.com/maxencoder/mixer/router"
 )
 
-func newTestDBRule() *router.Router {
-	var s = `
-schemas :
--
-  db : mixer 
-  nodes: [node1,node2,node3,node4,node5,node6,node7,node8,node9,node10]
-  rules:
-    default: node1
-    shard:
-      -   
-        table: test1
-        key: id
-        nodes: [node1,node2,node3,node4,node5,node6,node7,node8,node9,node10]
-        type: hash
+func init() {
+	node.InitPool()
 
-      -   
-        table: test2
-        key: id
-        type: range
-        nodes: [node1,node2,node3]
-        range: -10000-20000-
-`
+	for i := 0; i < 10; i++ {
+		name := fmt.Sprintf("node%d", i)
+		n, err := node.NewNode(
+			name,
+			"root",
+			"",
+			4,
+			300,
+			"127.0.0.1:3306",
+			[]string{"127.0.0.1:3307"},
+		)
 
-	cfg, err := config.ParseConfigData([]byte(s))
+		if err != nil {
+			panic(err)
+		}
+
+		node.SetNode(name, n)
+	}
+}
+
+func newTestDbRouter(t *testing.T) *router.Router {
+	rt, err := router.NewRouter("db1", "node0")
+
 	if err != nil {
-		println(err.Error())
-		panic(err)
+		t.Fatal(err)
 	}
 
-	var r *router.Router
+	rt.NewModuloHashRoute("test1-rt", 10, []string{"node1", "node2", "node3", "node4", "node5", "node6", "node7", "node8", "node9"})
 
-	r, err = router.NewRouter(&cfg.Schemas[0])
+	_, err = rt.NewTableRouter("db1", "test1", "id", "test1-rt")
+
 	if err != nil {
-		println(err.Error())
-		panic(err)
+		t.Fatal(err)
 	}
 
-	return r
+	krr1 := adminparser.KeyRangeRoute{
+		Start: adminparser.RangeNum{Inf: true},
+		End:   adminparser.RangeNum{Num: 10000},
+		Route: "node1",
+	}
+	krr2 := adminparser.KeyRangeRoute{
+		Start: adminparser.RangeNum{Num: 10000},
+		End:   adminparser.RangeNum{Num: 20000},
+		Route: "node2",
+	}
+	krr3 := adminparser.KeyRangeRoute{
+		Start: adminparser.RangeNum{Num: 20000},
+		End:   adminparser.RangeNum{Inf: true},
+		Route: "node3",
+	}
+
+	rt.NewRangeRoute("test2-rt", &adminparser.RangeRoute{
+		Ranges: []adminparser.KeyRangeRoute{krr1, krr2, krr3},
+	})
+
+	_, err = rt.NewTableRouter("db1", "test2", "id", "test2-rt")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return rt
 }
 
 func checkSharding(t *testing.T, sql string, args []int, checkNodeIndex ...int) {
-	r := newTestDBRule()
+	r := newTestDbRouter(t)
 
 	bindVars := make(map[string]interface{}, len(args))
 	for i, v := range args {
 		bindVars[fmt.Sprintf("v%d", i+1)] = v
 	}
-	ns, err := GetShardListIndex(sql, r, bindVars)
+
+	stmt, err := Parse(sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	eps, err := RouteStmt(stmt, sql, r, bindVars)
 	if err != nil {
 		t.Fatal(sql, err)
-	} else if len(ns) != len(checkNodeIndex) {
-		s := fmt.Sprintf("%v %v", ns, checkNodeIndex)
+	}
+
+	var got, expect []string
+
+	for _, i := range checkNodeIndex {
+		expect = append(expect, fmt.Sprintf("node%d", i))
+	}
+
+	for _, ep := range eps {
+		got = append(got, ep.Node)
+	}
+
+	sort.Strings(got)
+
+	if !sliceEq(got, expect) {
+		s := fmt.Sprintf("%v %v", got, checkNodeIndex)
 		t.Fatal(sql, s)
-	} else {
-		for i := range ns {
-			if ns[i] != checkNodeIndex[i] {
-				s := fmt.Sprintf("%v %v", ns, checkNodeIndex)
-				t.Fatal(sql, s, i)
-			}
-		}
 	}
 }
 
@@ -285,29 +327,29 @@ func TestValueVarArgSharding(t *testing.T) {
 func TestBadUpdateExpr(t *testing.T) {
 	var sql string
 
-	r := newTestDBRule()
+	r := newTestDbRouter(t)
 
 	sql = "insert into test1 (id) values (5) on duplicate key update  id = 10"
 
-	if _, err := GetShardList(sql, r, nil); err == nil {
+	if _, err := routeSql(sql, r, nil); err == nil {
 		t.Fatal("must err")
 	}
 
 	sql = "update test1 set id = 10 where id = 5"
 
-	if _, err := GetShardList(sql, r, nil); err == nil {
+	if _, err := routeSql(sql, r, nil); err == nil {
 		t.Fatal("must err")
 	}
 
 	sql = "insert into test1 (id, k) values (5, 55), (6, 66)"
 
-	if _, err := GetShardList(sql, r, nil); err == nil {
+	if _, err := routeSql(sql, r, nil); err == nil {
 		t.Fatal("must err")
 	}
 
 	sql = "insert into test1 (id, k) select * from atable"
 
-	if _, err := GetShardList(sql, r, nil); err == nil {
+	if _, err := routeSql(sql, r, nil); err == nil {
 		t.Fatal("must err")
 	}
 }
@@ -351,4 +393,42 @@ func checkFilterStmt(t *testing.T, sql, expect string, keys []router.Key, plan *
 	if String(filtered) != expect {
 		t.Fatalf("expected: %s, got: %s\n", expect, String(filtered))
 	}
+}
+
+func routeSql(sql string, r *router.Router, bindVars map[string]interface{}) ([]*ExecPlan, error) {
+	stmt, err := Parse(sql)
+
+	if err != nil {
+		return nil, err
+	}
+
+	eps, err := RouteStmt(stmt, sql, r, bindVars)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return eps, nil
+}
+
+func sliceEq(a, b []string) bool {
+	if a == nil && b == nil {
+		return true
+	}
+
+	if a == nil || b == nil {
+		return false
+	}
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
 }
