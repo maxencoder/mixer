@@ -356,7 +356,7 @@ func (r *Router) anythingLinkedToRoute(name string) string {
 }
 
 func (r *Router) FullList() []string {
-	f := []string{}
+	var f []string
 
 	for _, tr := range r.tr {
 		f = append(f, tr.Route.FullList()...)
@@ -776,8 +776,8 @@ func (r *RangeRoute) FindForKeys(keys []Key) *RoutingResult {
 func (r *RangeRoute) LinkedTo() []RouteRef {
 	rf := make([]RouteRef, len(r.Ranges))
 
-	for _, ra := range r.Ranges {
-		rf = append(rf, ra.Route)
+	for i, ra := range r.Ranges {
+		rf[i] = ra.Route
 	}
 
 	return rf
@@ -860,9 +860,10 @@ func (r *LookupRoute) fetchShardKeysMap(keys []Key) (map[int][]Key, error) {
 		panic(err)
 	}
 
-	var ks []string
-	for _, k := range keys {
-		ks = append(ks, strconv.FormatInt(int64(k), 10))
+	var ks = make([]string, len(keys))
+
+	for i, k := range keys {
+		ks[i] = strconv.FormatInt(int64(k), 10)
 	}
 
 	csv := strings.Join(ks, ", ")
