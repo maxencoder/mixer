@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/maxencoder/mixer/adminparser"
-	"github.com/maxencoder/mixer/router"
 	"github.com/maxencoder/mixer/sqlparser"
 	. "github.com/siddontang/go-mysql/mysql"
 )
@@ -98,20 +97,11 @@ func (c *Conn) addTableRouter(cmd *adminparser.AddTableRouter) (*Result, error) 
 		return nil, fmt.Errorf("route %s does not exist", cmd.Route)
 	}
 
-	ref, err := r.NewRouteRef(string(cmd.Route))
+	_, err := r.NewTableRouter(cmd.Db, cmd.Table, cmd.Key, string(cmd.Route))
 
 	if err != nil {
 		return nil, err
 	}
-
-	new := &router.TableRouter{
-		DB:    cmd.Db,
-		Table: cmd.Table,
-		Key:   cmd.Key,
-		Route: ref,
-	}
-
-	r.SetTableRouter(cmd.Table, new)
 
 	return nil, nil
 }

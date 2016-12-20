@@ -59,6 +59,7 @@ func (p *Pool) ParseNodes(cfg *config.Config) error {
 		}
 
 		n, err := NewNode(v)
+
 		if err != nil {
 			return err
 		}

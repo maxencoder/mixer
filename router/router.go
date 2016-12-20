@@ -133,6 +133,25 @@ func (r *Router) DeleteRoute(name string) error {
 	return nil
 }
 
+func (r *Router) NewTableRouter(db, table, key, route string) (*TableRouter, error) {
+	ref, err := r.NewRouteRef(route)
+
+	if err != nil {
+		return nil, err
+	}
+
+	new := &TableRouter{
+		DB:    db,
+		Table: table,
+		Key:   key,
+		Route: ref,
+	}
+
+	r.SetTableRouter(table, new)
+
+	return new, nil
+}
+
 func (r *Router) GetTableRouterOrDefault(name string) *TableRouter {
 	r.RLock()
 	defer r.RUnlock()
@@ -586,13 +605,16 @@ func (r *MirrorRoute) FindForKeys(keys []Key) *RoutingResult {
 	ret := r.Main.Route().FindForKeys(keys)
 
 	mr := NewRoutingResult()
+
 	for _, route := range r.Mirror {
 		t := route.Route().FindForKeys(keys)
 
 		// on mirror side everything becomes mirrored
-		for _, kr := range t.R {
-			kr.Mirror = append(kr.Mirror, kr.Node)
-			kr.Node = ""
+		for k, kr := range t.R {
+			t.R[k] = KeyResult{
+				Node:   "",
+				Mirror: append(kr.Mirror, kr.Node),
+			}
 		}
 
 		mr.Merge(t)

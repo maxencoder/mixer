@@ -69,6 +69,7 @@ func newTestServer(t *testing.T) *Server {
 		}
 
 		testServer, err = NewServer(cfg)
+
 		if err != nil {
 			t.Fatal(err)
 		}
