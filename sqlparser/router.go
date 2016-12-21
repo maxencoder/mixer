@@ -75,6 +75,15 @@ func RouteStmt(stmt Statement, sql string, r *router.Router, bindVars map[string
 
 	plan := getAnalysisPlan(stmt, r, bindVars)
 
+	if plan.router.IsDefault {
+		return []*ExecPlan{&ExecPlan{
+			sql:      sql,
+			Stmt:     stmt,
+			Node:     r.DefaultNode,
+			IsMirror: false,
+		}}, nil
+	}
+
 	// TODO: optimize routing when there's only one shard node (default)
 
 	ke := plan.keyExprFromPlan()
@@ -260,7 +269,10 @@ func getAnalysisPlan(statement Statement, r *router.Router, bindVars map[string]
 		plan.table = String(stmt.Table)
 		plan.isInsert = true
 		plan.router = r.GetTableRouterOrDefault(plan.table)
-		plan.criteria = plan.routingAnalyzeValues(stmt)
+
+		if !plan.router.IsDefault {
+			plan.criteria = plan.routingAnalyzeValues(stmt)
+		}
 
 		return plan
 	case *Select:
