@@ -56,8 +56,8 @@ func forceEOF(yylex interface{}) {
 }
 
 %token LEX_ERROR
-%token <empty> ADD ALTER DELETE SHOW
-%token <empty> DEFAULT DATABASE
+%token <empty> ADMIN ADD ALTER DELETE SHOW
+%token <empty> DEFAULT DATABASE FROM
 %token <empty> HASH INF KEY KIND MIRROR MIRRORS MODULO TO RANGE
 %token <empty> TABLE TYPE ROUTE ROUTES ROUTER
 
@@ -66,6 +66,7 @@ func forceEOF(yylex interface{}) {
 
 %type <command> command
 %type <command> add_command alter_command delete_command show_command
+%type <command> other_command
 %type <tableIdent> table_id
 
 %type <hashRoute> hash_route_def
@@ -97,6 +98,7 @@ command:
 | alter_command
 | delete_command
 | show_command
+| other_command
 
 add_command:
   ADD DATABASE ROUTER str_id database_router_def
@@ -156,6 +158,12 @@ show_command:
   SHOW ROUTES
   {
     $$ = &Show{}
+  }
+
+other_command:
+  FROM ADMIN
+  {
+    $$ = &FromAdmin{}
   }
 
 database_router_def:

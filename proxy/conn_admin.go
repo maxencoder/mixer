@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/maxencoder/mixer/adminparser"
 	"github.com/maxencoder/mixer/sqlparser"
@@ -12,8 +11,6 @@ import (
 var astring = adminparser.String
 
 func (c *Conn) handleAdmin(cmd adminparser.Command, sql string) (*Result, error) {
-	log.Printf("%#v\n", cmd)
-
 	switch cmd := cmd.(type) {
 	case *adminparser.AddRoute:
 		return c.addRoute(cmd)
@@ -23,6 +20,8 @@ func (c *Conn) handleAdmin(cmd adminparser.Command, sql string) (*Result, error)
 		return c.addTableRouter(cmd)
 	case *adminparser.Show:
 		return c.adminShow(cmd)
+	case *adminparser.FromAdmin:
+		return c.fromAdmin(cmd)
 	default:
 		return nil, fmt.Errorf("unknown command")
 
@@ -117,6 +116,12 @@ func (c *Conn) adminShow(cmd *adminparser.Show) (*Result, error) {
 	}
 
 	return &Result{Status: c.status, Resultset: r}, nil
+}
+
+func (c *Conn) fromAdmin(cmd *adminparser.FromAdmin) (*Result, error) {
+	c.isAdminMode = false
+
+	return nil, nil
 }
 
 func (c *Conn) adminShowRoutes(cmd *adminparser.Show) (*Resultset, error) {

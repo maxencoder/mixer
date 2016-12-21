@@ -55,43 +55,47 @@ type yySymType struct {
 }
 
 const LEX_ERROR = 57346
-const ADD = 57347
-const ALTER = 57348
-const DELETE = 57349
-const SHOW = 57350
-const DEFAULT = 57351
-const DATABASE = 57352
-const HASH = 57353
-const INF = 57354
-const KEY = 57355
-const KIND = 57356
-const MIRROR = 57357
-const MIRRORS = 57358
-const MODULO = 57359
-const TO = 57360
-const RANGE = 57361
-const TABLE = 57362
-const TYPE = 57363
-const ROUTE = 57364
-const ROUTES = 57365
-const ROUTER = 57366
-const ID = 57367
-const STRING = 57368
-const NUMBER = 57369
-const LIST_ARG = 57370
-const COMMENT = 57371
+const ADMIN = 57347
+const ADD = 57348
+const ALTER = 57349
+const DELETE = 57350
+const SHOW = 57351
+const DEFAULT = 57352
+const DATABASE = 57353
+const FROM = 57354
+const HASH = 57355
+const INF = 57356
+const KEY = 57357
+const KIND = 57358
+const MIRROR = 57359
+const MIRRORS = 57360
+const MODULO = 57361
+const TO = 57362
+const RANGE = 57363
+const TABLE = 57364
+const TYPE = 57365
+const ROUTE = 57366
+const ROUTES = 57367
+const ROUTER = 57368
+const ID = 57369
+const STRING = 57370
+const NUMBER = 57371
+const LIST_ARG = 57372
+const COMMENT = 57373
 
 var yyToknames = [...]string{
 	"$end",
 	"error",
 	"$unk",
 	"LEX_ERROR",
+	"ADMIN",
 	"ADD",
 	"ALTER",
 	"DELETE",
 	"SHOW",
 	"DEFAULT",
 	"DATABASE",
+	"FROM",
 	"HASH",
 	"INF",
 	"KEY",
@@ -129,89 +133,90 @@ var yyExca = [...]int{
 	-2, 0,
 }
 
-const yyNprod = 36
+const yyNprod = 38
 const yyPrivate = 57344
 
 var yyTokenNames []string
 var yyStates []string
 
-const yyLast = 108
+const yyLast = 114
 
 var yyAct = [...]int{
 
-	94, 93, 73, 65, 34, 64, 61, 45, 51, 49,
-	67, 47, 33, 44, 23, 24, 80, 27, 77, 74,
-	30, 32, 74, 98, 29, 99, 31, 87, 66, 84,
-	38, 83, 46, 42, 28, 26, 25, 22, 21, 39,
-	20, 48, 43, 50, 52, 53, 17, 48, 56, 52,
-	57, 55, 54, 91, 60, 14, 18, 90, 19, 71,
-	11, 89, 88, 70, 72, 15, 76, 16, 62, 40,
-	12, 79, 13, 81, 82, 78, 35, 41, 75, 101,
-	37, 69, 86, 85, 36, 59, 58, 1, 63, 92,
-	68, 95, 96, 6, 5, 97, 4, 3, 2, 100,
-	0, 0, 0, 102, 7, 8, 9, 10,
+	97, 96, 76, 68, 37, 67, 64, 48, 54, 52,
+	36, 50, 70, 47, 27, 83, 26, 80, 77, 30,
+	35, 77, 33, 101, 102, 90, 22, 87, 86, 34,
+	69, 49, 32, 41, 31, 29, 45, 28, 25, 24,
+	42, 94, 93, 46, 51, 19, 53, 55, 56, 92,
+	51, 59, 55, 60, 58, 57, 20, 63, 21, 16,
+	13, 91, 74, 65, 81, 78, 73, 75, 104, 79,
+	17, 14, 18, 15, 82, 38, 84, 85, 62, 40,
+	43, 72, 61, 39, 23, 89, 88, 1, 44, 66,
+	71, 7, 95, 6, 98, 99, 5, 4, 100, 3,
+	2, 0, 103, 0, 0, 0, 105, 8, 9, 10,
+	11, 0, 0, 12,
 }
 var yyPact = [...]int{
 
-	99, -1000, -1000, -1000, -1000, -1000, -1000, 50, 45, 36,
-	17, 14, 13, -13, 12, 11, -13, 10, 0, -13,
-	-1000, -7, -7, 65, -1000, -7, -7, 58, -7, -7,
-	-1000, 7, -1000, 7, -24, 7, 7, 7, 7, 7,
-	7, 7, -1000, -1000, -1000, 77, -1000, -1000, 72, -7,
-	47, -1000, -2, 67, -1000, -1000, 47, -1000, -13, -7,
-	-1000, -5, 61, -8, -1000, 57, -1000, -1000, -5, -12,
-	-5, -5, 5, -1000, -1000, 3, -1000, -2, -2, -1000,
-	1, -1000, -1000, 40, 39, -1000, 35, 31, -13, -13,
-	-13, -13, -5, -3, -1000, -1000, -1, -1000, -13, 63,
-	-1000, -13, -3,
+	101, -1000, -1000, -1000, -1000, -1000, -1000, -1000, 49, 48,
+	34, 1, 79, 13, 12, -16, 11, 9, -16, 8,
+	6, -16, -1000, -1000, -10, -10, 62, -1000, -10, -10,
+	67, -10, -10, -1000, 4, -1000, 4, -26, 4, 4,
+	4, 4, 4, 4, 4, -1000, -1000, -1000, 72, -1000,
+	-1000, 63, -10, 40, -1000, -2, 65, -1000, -1000, 40,
+	-1000, -16, -10, -1000, -8, 46, -11, -1000, 44, -1000,
+	-1000, -8, -15, -8, -8, 0, -1000, -1000, -1, -1000,
+	-2, -2, -1000, -3, -1000, -1000, 37, 25, -1000, 18,
+	17, -16, -16, -16, -16, -8, -5, -1000, -1000, -4,
+	-1000, -16, 50, -1000, -16, -5,
 }
 var yyPgo = [...]int{
 
-	0, 98, 97, 96, 94, 93, 12, 6, 90, 8,
-	88, 5, 13, 11, 3, 1, 0, 4, 87, 7,
-	2,
+	0, 100, 99, 97, 96, 93, 91, 10, 6, 90,
+	8, 89, 5, 13, 11, 3, 1, 0, 4, 87,
+	7, 2,
 }
 var yyR1 = [...]int{
 
-	0, 18, 1, 1, 1, 1, 2, 2, 2, 2,
-	2, 3, 3, 3, 3, 4, 4, 4, 5, 12,
-	13, 7, 8, 9, 10, 10, 11, 14, 14, 15,
-	15, 6, 16, 17, 19, 20,
+	0, 19, 1, 1, 1, 1, 1, 2, 2, 2,
+	2, 2, 3, 3, 3, 3, 4, 4, 4, 5,
+	6, 13, 14, 8, 9, 10, 11, 11, 12, 15,
+	15, 16, 16, 7, 17, 18, 20, 21,
 }
 var yyR2 = [...]int{
 
-	0, 1, 1, 1, 1, 1, 5, 5, 7, 5,
-	7, 5, 5, 7, 5, 4, 4, 3, 2, 4,
-	7, 5, 8, 3, 1, 3, 5, 1, 1, 1,
-	3, 3, 1, 1, 1, 1,
+	0, 1, 1, 1, 1, 1, 1, 5, 5, 7,
+	5, 7, 5, 5, 7, 5, 4, 4, 3, 2,
+	2, 4, 7, 5, 8, 3, 1, 3, 5, 1,
+	1, 1, 3, 3, 1, 1, 1, 1,
 }
 var yyChk = [...]int{
 
-	-1000, -18, -1, -2, -3, -4, -5, 5, 6, 7,
-	8, 10, 20, 22, 10, 20, 22, 10, 20, 22,
-	23, 24, 24, -16, 28, 24, 24, -16, 24, 24,
-	-16, -17, 28, -6, -17, 11, 19, 15, -17, -6,
-	11, 19, -17, -6, -12, -19, 25, -13, -19, 33,
-	-19, -9, -19, -19, -12, -13, -19, -9, 9, 13,
-	-17, -7, 21, -10, -11, -14, 30, 12, -8, 14,
-	-7, -16, -17, -20, 27, 17, -20, 26, 18, -20,
-	28, -20, -20, 26, 26, -11, -14, 26, 22, 22,
-	22, 22, -16, -15, -16, -16, -16, -20, 26, 26,
-	-16, 16, -15,
+	-1000, -19, -1, -2, -3, -4, -5, -6, 6, 7,
+	8, 9, 12, 11, 22, 24, 11, 22, 24, 11,
+	22, 24, 25, 5, 26, 26, -17, 30, 26, 26,
+	-17, 26, 26, -17, -18, 30, -7, -18, 13, 21,
+	17, -18, -7, 13, 21, -18, -7, -13, -20, 27,
+	-14, -20, 35, -20, -10, -20, -20, -13, -14, -20,
+	-10, 10, 15, -18, -8, 23, -11, -12, -15, 32,
+	14, -9, 16, -8, -17, -18, -21, 29, 19, -21,
+	28, 20, -21, 30, -21, -21, 28, 28, -12, -15,
+	28, 24, 24, 24, 24, -17, -16, -17, -17, -17,
+	-21, 28, 28, -17, 18, -16,
 }
 var yyDef = [...]int{
 
-	0, -2, 1, 2, 3, 4, 5, 0, 0, 0,
+	0, -2, 1, 2, 3, 4, 5, 6, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	18, 0, 0, 0, 32, 0, 0, 0, 0, 0,
-	17, 0, 33, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 15, 16, 6, 0, 34, 7, 0, 0,
-	0, 9, 0, 0, 11, 12, 0, 14, 0, 0,
-	31, 0, 0, 0, 24, 0, 27, 28, 0, 0,
-	0, 0, 0, 8, 35, 0, 23, 0, 0, 10,
-	0, 13, 19, 0, 0, 25, 0, 0, 0, 0,
-	0, 0, 0, 21, 29, 26, 0, 20, 0, 0,
-	30, 0, 22,
+	0, 0, 19, 20, 0, 0, 0, 34, 0, 0,
+	0, 0, 0, 18, 0, 35, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 16, 17, 7, 0, 36,
+	8, 0, 0, 0, 10, 0, 0, 12, 13, 0,
+	15, 0, 0, 33, 0, 0, 0, 26, 0, 29,
+	30, 0, 0, 0, 0, 0, 9, 37, 0, 25,
+	0, 0, 11, 0, 14, 21, 0, 0, 27, 0,
+	0, 0, 0, 0, 0, 0, 23, 31, 28, 0,
+	22, 0, 0, 32, 0, 24,
 }
 var yyTok1 = [...]int{
 
@@ -219,13 +224,13 @@ var yyTok1 = [...]int{
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	25, 27, 3, 3, 26, 3, 33,
+	27, 29, 3, 3, 28, 3, 35,
 }
 var yyTok2 = [...]int{
 
 	2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
 	12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-	22, 23, 24, 28, 29, 30, 31, 32,
+	22, 23, 24, 25, 26, 30, 31, 32, 33, 34,
 }
 var yyTok3 = [...]int{
 	0,
@@ -570,139 +575,145 @@ yydefault:
 
 	case 1:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line admin.y:91
+		//line admin.y:92
 		{
 			setParseTree(yylex, yyDollar[1].command)
 		}
-	case 6:
+	case 7:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line admin.y:103
+		//line admin.y:105
 		{
 			yyVAL.command = &AddDbRouter{Db: yyDollar[4].str, Default: yyDollar[5].routeID}
 		}
-	case 7:
+	case 8:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line admin.y:107
+		//line admin.y:109
 		{
 			yyVAL.command = &AddTableRouter{Db: yyDollar[4].tableIdent.Db, Table: yyDollar[4].tableIdent.Table, Key: yyDollar[5].tableRouterDef.Key, Route: yyDollar[5].tableRouterDef.Route}
 		}
-	case 8:
+	case 9:
 		yyDollar = yyS[yypt-7 : yypt+1]
-		//line admin.y:111
+		//line admin.y:113
 		{
 			yyVAL.command = &AddRoute{Name: yyDollar[3].str, Route: yyDollar[6].hashRoute}
 		}
-	case 9:
+	case 10:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line admin.y:115
+		//line admin.y:117
 		{
 			yyVAL.command = &AddRoute{Name: yyDollar[3].str, Route: yyDollar[5].rangeRoute}
 		}
-	case 10:
+	case 11:
 		yyDollar = yyS[yypt-7 : yypt+1]
-		//line admin.y:119
+		//line admin.y:121
 		{
 			yyVAL.command = &AddRoute{Name: yyDollar[3].str, Route: yyDollar[6].mirrorRoute}
 		}
-	case 11:
+	case 12:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line admin.y:125
+		//line admin.y:127
 		{
 			yyVAL.command = &AlterDbRouter{Db: yyDollar[4].str, Default: yyDollar[5].routeID}
 		}
-	case 12:
+	case 13:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line admin.y:129
+		//line admin.y:131
 		{
 			yyVAL.command = &AlterTableRouter{Db: yyDollar[4].tableIdent.Db, Table: yyDollar[4].tableIdent.Table, Key: yyDollar[5].tableRouterDef.Key, Route: yyDollar[5].tableRouterDef.Route}
 		}
-	case 13:
+	case 14:
 		yyDollar = yyS[yypt-7 : yypt+1]
-		//line admin.y:133
+		//line admin.y:135
 		{
 			yyVAL.command = &AlterRoute{Name: yyDollar[3].str, Route: yyDollar[6].hashRoute}
 		}
-	case 14:
+	case 15:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line admin.y:137
+		//line admin.y:139
 		{
 			yyVAL.command = &AlterRoute{Name: yyDollar[3].str, Route: yyDollar[5].rangeRoute}
 		}
-	case 15:
+	case 16:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line admin.y:143
+		//line admin.y:145
 		{
 			yyVAL.command = &DeleteDbRouter{Db: yyDollar[4].str}
 		}
-	case 16:
+	case 17:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line admin.y:147
+		//line admin.y:149
 		{
 			yyVAL.command = &DeleteTableRouter{Db: yyDollar[4].tableIdent.Db, Table: yyDollar[4].tableIdent.Table}
 		}
-	case 17:
+	case 18:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line admin.y:151
+		//line admin.y:153
 		{
 			yyVAL.command = &DeleteRoute{Name: yyDollar[3].str}
 		}
-	case 18:
+	case 19:
 		yyDollar = yyS[yypt-2 : yypt+1]
-		//line admin.y:157
+		//line admin.y:159
 		{
 			yyVAL.command = &Show{}
 		}
-	case 19:
+	case 20:
+		yyDollar = yyS[yypt-2 : yypt+1]
+		//line admin.y:165
+		{
+			yyVAL.command = &FromAdmin{}
+		}
+	case 21:
 		yyDollar = yyS[yypt-4 : yypt+1]
-		//line admin.y:163
+		//line admin.y:171
 		{
 			yyVAL.routeID = RouteID(yyDollar[3].str)
 		}
-	case 20:
+	case 22:
 		yyDollar = yyS[yypt-7 : yypt+1]
-		//line admin.y:169
+		//line admin.y:177
 		{
 			yyVAL.tableRouterDef = TableRouterDef{Key: yyDollar[3].str, Route: RouteID(yyDollar[6].str)}
 		}
-	case 21:
+	case 23:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line admin.y:175
+		//line admin.y:183
 		{
 			yyVAL.hashRoute = &HashRoute{Type: ModuloStr, Routes: yyDollar[5].strings}
 		}
-	case 22:
+	case 24:
 		yyDollar = yyS[yypt-8 : yypt+1]
-		//line admin.y:181
+		//line admin.y:189
 		{
 			yyVAL.mirrorRoute = &MirrorRoute{Kind: string(yyDollar[2].bytes), Main: yyDollar[5].str, Mirrors: yyDollar[8].strings}
 		}
-	case 23:
+	case 25:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line admin.y:187
+		//line admin.y:195
 		{
 			yyVAL.rangeRoute = &RangeRoute{Ranges: yyDollar[2].rangeRouteList}
 		}
-	case 24:
+	case 26:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line admin.y:193
+		//line admin.y:201
 		{
 			yyVAL.rangeRouteList = []KeyRangeRoute{yyDollar[1].keyRangeRoute}
 		}
-	case 25:
+	case 27:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line admin.y:197
+		//line admin.y:205
 		{
 			yyVAL.rangeRouteList = append(yyVAL.rangeRouteList, yyDollar[3].keyRangeRoute)
 		}
-	case 26:
+	case 28:
 		yyDollar = yyS[yypt-5 : yypt+1]
-		//line admin.y:203
+		//line admin.y:211
 		{
 			yyVAL.keyRangeRoute = KeyRangeRoute{Start: yyDollar[1].rangeNum, End: yyDollar[3].rangeNum, Route: yyDollar[5].str}
 		}
-	case 27:
+	case 29:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line admin.y:209
+		//line admin.y:217
 		{
 			n, err := strconv.ParseInt(string(yyDollar[1].bytes), 10, 64)
 			if err != nil {
@@ -711,54 +722,54 @@ yydefault:
 			}
 			yyVAL.rangeNum = RangeNum{Num: n}
 		}
-	case 28:
+	case 30:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line admin.y:218
+		//line admin.y:226
 		{
 			yyVAL.rangeNum = RangeNum{Inf: true}
 		}
-	case 29:
+	case 31:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line admin.y:224
+		//line admin.y:232
 		{
 			yyVAL.strings = []string{yyDollar[1].str}
 		}
-	case 30:
+	case 32:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line admin.y:228
+		//line admin.y:236
 		{
 			yyVAL.strings = append(yyVAL.strings, yyDollar[3].str)
 		}
-	case 31:
+	case 33:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line admin.y:234
+		//line admin.y:242
 		{
 			yyVAL.tableIdent = TableIdent{Db: yyDollar[1].str, Table: yyDollar[3].str}
 		}
-	case 32:
-		yyDollar = yyS[yypt-1 : yypt+1]
-		//line admin.y:240
-		{
-			yyVAL.str = string(yyDollar[1].bytes)
-		}
-	case 33:
-		yyDollar = yyS[yypt-1 : yypt+1]
-		//line admin.y:246
-		{
-			yyVAL.str = string(yyDollar[1].bytes)
-		}
 	case 34:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line admin.y:252
+		//line admin.y:248
+		{
+			yyVAL.str = string(yyDollar[1].bytes)
+		}
+	case 35:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		//line admin.y:254
+		{
+			yyVAL.str = string(yyDollar[1].bytes)
+		}
+	case 36:
+		yyDollar = yyS[yypt-1 : yypt+1]
+		//line admin.y:260
 		{
 			if incNesting(yylex) {
 				yylex.Error("max nesting level reached")
 				return 1
 			}
 		}
-	case 35:
+	case 37:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line admin.y:261
+		//line admin.y:269
 		{
 			decNesting(yylex)
 		}

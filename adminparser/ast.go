@@ -43,6 +43,13 @@ func (*DeleteRoute) iCommand()       {}
 func (*DeleteDbRouter) iCommand()    {}
 func (*DeleteTableRouter) iCommand() {}
 func (*Show) iCommand()              {}
+func (*FromAdmin) iCommand()         {}
+
+type FromAdmin struct{}
+
+func (n *FromAdmin) Format(buf *TrackedBuffer) {
+	buf.Myprintf("from admin")
+}
 
 type AddRoute struct {
 	Name  string

@@ -37,10 +37,12 @@ func NewStringTokenizer(sql string) *Tokenizer {
 
 var keywords = map[string]int{
 	"add":      ADD,
+	"admin":    ADMIN,
 	"alter":    ALTER,
 	"database": DATABASE,
 	"default":  DEFAULT,
 	"delete":   DELETE,
+	"from":     FROM,
 	"hash":     HASH,
 	"inf":      INF,
 	"key":      KEY,
