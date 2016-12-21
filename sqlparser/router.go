@@ -70,17 +70,10 @@ type AnalysisPlan struct {
 		where id between 1 and 10
 		where id >= 1 and id < 10
 */
-
 func RouteStmt(stmt Statement, sql string, r *router.Router, bindVars map[string]interface{}) (execPlans []*ExecPlan, err error) {
 	defer handleError(&err)
 
-	plan := getAnalysisPlan(stmt)
-
-	plan.bindVars = bindVars
-
-	tr := r.GetTableRouterOrDefault(plan.table)
-
-	plan.router = tr
+	plan := getAnalysisPlan(stmt, r, bindVars)
 
 	// TODO: optimize routing when there's only one shard node (default)
 
@@ -88,7 +81,7 @@ func RouteStmt(stmt Statement, sql string, r *router.Router, bindVars map[string
 
 	switch ke := ke.(type) {
 	case *router.KeyList:
-		keyRoutes := tr.FindForKeys(ke.Keys)
+		keyRoutes := plan.router.FindForKeys(ke.Keys)
 
 		for node, keys := range keyRoutes.SplitByNode() {
 			newStmt := stmt
@@ -127,10 +120,10 @@ func RouteStmt(stmt Statement, sql string, r *router.Router, bindVars map[string
 		if plan.isInsert {
 			panic(errors.New("unable to route unknown keys for Insert"))
 		}
-		for _, node := range tr.FullList() {
+		for _, node := range plan.router.FullList() {
 			execPlans = append(execPlans, &ExecPlan{sql, stmt, node, false, nil})
 		}
-		for _, node := range tr.FullMirrorList(plan.isSelect) {
+		for _, node := range plan.router.FullMirrorList(plan.isSelect) {
 			execPlans = append(execPlans, &ExecPlan{sql, stmt, node, true, nil})
 		}
 	default:
@@ -252,8 +245,9 @@ func (plan *AnalysisPlan) checkNotUpdatingKey(exprs UpdateExprs) error {
 	return nil
 }
 
-func getAnalysisPlan(statement Statement) (plan *AnalysisPlan) {
+func getAnalysisPlan(statement Statement, r *router.Router, bindVars map[string]interface{}) (plan *AnalysisPlan) {
 	plan = &AnalysisPlan{}
+	plan.bindVars = bindVars
 	var where *Where
 	var whereRequired bool = true
 
@@ -265,6 +259,7 @@ func getAnalysisPlan(statement Statement) (plan *AnalysisPlan) {
 
 		plan.table = String(stmt.Table)
 		plan.isInsert = true
+		plan.router = r.GetTableRouterOrDefault(plan.table)
 		plan.criteria = plan.routingAnalyzeValues(stmt)
 
 		return plan
@@ -286,6 +281,8 @@ func getAnalysisPlan(statement Statement) (plan *AnalysisPlan) {
 	} else if whereRequired {
 		panic(errors.New("statements with empty `where` clause not supported"))
 	}
+
+	plan.router = r.GetTableRouterOrDefault(plan.table)
 
 	return plan
 }
