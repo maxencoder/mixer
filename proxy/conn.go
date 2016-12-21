@@ -132,9 +132,7 @@ func (c *Conn) HandleFieldList(table string, fieldWildcard string) ([]*Field, er
 		return nil, NewDefaultError(ER_NO_DB_ERROR)
 	}
 
-	// TODO
-	var nodeName string
-	//nodeName := c.schema.router.GetTableRouter(table).DefaultNode()
+	nodeName := c.schema().Router.DefaultNode
 
 	n := c.server.getNode(nodeName)
 

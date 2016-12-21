@@ -309,7 +309,7 @@ func (plan *AnalysisPlan) routingAnalyzeValues(stmt *Insert) Values {
 		}
 	}
 	if keyPos == -1 {
-		panic("failed to find sharding key in insert")
+		panic(errors.New("failed to find sharding key in insert"))
 	}
 
 	plan.insertKeyPos = keyPos
@@ -437,7 +437,7 @@ func (plan *AnalysisPlan) getBoundValue(valExpr ValExpr) interface{} {
 	case ValArg:
 		return plan.bindVars[string(node[1:])]
 	}
-	panic("Unexpected token")
+	panic(errors.New("Unexpected token"))
 }
 
 func contains(keys []router.Key, key router.Key) bool {
