@@ -4,8 +4,6 @@
 
 package router
 
-import ()
-
 const (
 	MaxUint64 = ^uint64(0)            // 18446744073709551615
 	MaxInt64  = int64(MaxUint64 >> 1) // 9223372036854775807
@@ -92,7 +90,7 @@ func KeyExprOr(k1, k2 KeyExpr) (r KeyExpr) {
 
 	switch ke1 := k1.(type) {
 	case *KeyUnknown:
-		return k2
+		return &KeyUnknown{}
 	case *KeyRange:
 		return &KeyUnknown{}
 	case *KeyList:
