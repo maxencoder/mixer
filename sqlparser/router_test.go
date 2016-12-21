@@ -40,7 +40,7 @@ func newTestDbRouter(t *testing.T) *router.Router {
 		t.Fatal(err)
 	}
 
-	rt.NewModuloHashRoute("test1-rt", 10, []string{"node1", "node2", "node3", "node4", "node5", "node6", "node7", "node8", "node9"})
+	rt.NewModuloHashRoute("test1-rt", 10, []string{"node0", "node1", "node2", "node3", "node4", "node5", "node6", "node7", "node8", "node9"})
 
 	_, err = rt.NewTableRouter("db1", "test1", "id", "test1-rt")
 
