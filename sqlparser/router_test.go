@@ -48,20 +48,21 @@ func newTestDbRouter(t *testing.T) *router.Router {
 		t.Fatal(err)
 	}
 
+	// ranges: -10000-20000-
 	krr1 := adminparser.KeyRangeRoute{
 		Start: adminparser.RangeNum{Inf: true},
 		End:   adminparser.RangeNum{Num: 10000},
-		Route: "node1",
+		Route: "node0",
 	}
 	krr2 := adminparser.KeyRangeRoute{
 		Start: adminparser.RangeNum{Num: 10000},
 		End:   adminparser.RangeNum{Num: 20000},
-		Route: "node2",
+		Route: "node1",
 	}
 	krr3 := adminparser.KeyRangeRoute{
 		Start: adminparser.RangeNum{Num: 20000},
 		End:   adminparser.RangeNum{Inf: true},
-		Route: "node3",
+		Route: "node2",
 	}
 
 	rt.NewRangeRoute("test2-rt", &adminparser.RangeRoute{
@@ -147,40 +148,40 @@ func TestConditionSharding(t *testing.T) {
 	checkSharding(t, sql, nil, 1)
 
 	sql = "select * from test2 where id between 10000 and 100000"
-	checkSharding(t, sql, nil, 1, 2)
+	checkSharding(t, sql, nil, 0, 1, 2)
 
 	sql = "select * from test2 where id not between 1000 and 100000"
-	checkSharding(t, sql, nil, 0, 2)
+	checkSharding(t, sql, nil, 0, 1, 2)
 
 	sql = "select * from test2 where id not between 10000 and 100000"
-	checkSharding(t, sql, nil, 0, 2)
+	checkSharding(t, sql, nil, 0, 1, 2)
 
 	sql = "select * from test2 where id > 10000"
-	checkSharding(t, sql, nil, 1, 2)
+	checkSharding(t, sql, nil, 0, 1, 2)
 
 	sql = "select * from test2 where id >= 10000"
-	checkSharding(t, sql, nil, 1, 2)
+	checkSharding(t, sql, nil, 0, 1, 2)
 
 	sql = "select * from test2 where id <= 10000"
-	checkSharding(t, sql, nil, 0, 1)
+	checkSharding(t, sql, nil, 0, 1, 2)
 
 	sql = "select * from test2 where id < 10000"
-	checkSharding(t, sql, nil, 0)
+	checkSharding(t, sql, nil, 0, 1, 2)
 
 	sql = "select * from test2 where  10000 < id"
-	checkSharding(t, sql, nil, 1, 2)
+	checkSharding(t, sql, nil, 0, 1, 2)
 
 	sql = "select * from test2 where  10000 <= id"
-	checkSharding(t, sql, nil, 1, 2)
+	checkSharding(t, sql, nil, 0, 1, 2)
 
 	sql = "select * from test2 where  10000 > id"
-	checkSharding(t, sql, nil, 0)
+	checkSharding(t, sql, nil, 0, 1, 2)
 
 	sql = "select * from test2 where  10000 >= id"
-	checkSharding(t, sql, nil, 0, 1)
+	checkSharding(t, sql, nil, 0, 1, 2)
 
 	sql = "select * from test2 where id >= 10000 and id <= 100000"
-	checkSharding(t, sql, nil, 1, 2)
+	checkSharding(t, sql, nil, 0, 1, 2)
 
 	sql = "select * from test2 where (id >= 10000 and id <= 100000) or id < 100"
 	checkSharding(t, sql, nil, 0, 1, 2)
@@ -190,6 +191,9 @@ func TestConditionSharding(t *testing.T) {
 
 	sql = "select * from test2 where id in (1, 10000)"
 	checkSharding(t, sql, nil, 0, 1)
+
+	sql = "select * from test2 where id in (-1, 1, 2, 3)"
+	checkSharding(t, sql, nil, 0)
 
 	sql = "select * from test2 where id not in (1, 10000)"
 	checkSharding(t, sql, nil, 0, 1, 2)
@@ -201,7 +205,7 @@ func TestConditionSharding(t *testing.T) {
 	checkSharding(t, sql, nil, 0, 1, 2)
 
 	sql = "select * from test2 where id > -1 and id < 11000"
-	checkSharding(t, sql, nil, 0, 1)
+	checkSharding(t, sql, nil, 0, 1, 2)
 }
 
 func TestConditionVarArgSharding(t *testing.T) {
