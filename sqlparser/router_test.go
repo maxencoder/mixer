@@ -333,7 +333,7 @@ func TestBadUpdateExpr(t *testing.T) {
 
 	r := newTestDbRouter(t)
 
-	sql = "insert into test1 (id) values (5) on duplicate key update  id = 10"
+	sql = "insert into test1 (id) values (5) on duplicate key update id = 10"
 
 	if _, err := routeSql(sql, r, nil); err == nil {
 		t.Fatal("must err")
