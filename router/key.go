@@ -4,13 +4,11 @@
 
 package router
 
-const (
-	MaxUint64 = ^uint64(0)            // 18446744073709551615
-	MaxInt64  = int64(MaxUint64 >> 1) // 9223372036854775807
-	MinInt64  = -MaxInt64 - 1         // -9223372036854775808
+import "math"
 
-	MaxKey = Key(MaxInt64)
-	MinKey = Key(MinInt64)
+const (
+	MaxKey = Key(math.MaxInt64)
+	MinKey = Key(math.MinInt64)
 )
 
 // routing key
