@@ -230,7 +230,7 @@ func TestConditionVarArgSharding(t *testing.T) {
 	checkSharding(t, sql, []int{5, 6, 5, 6, 7, 8}, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
 
 	sql = "select * from test1 where id not in (?, ?)"
-	checkSharding(t, sql, []int{5, 6}, 0, 1, 2, 3, 4, 7, 8, 9)
+	checkSharding(t, sql, []int{5, 6}, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
 
 	sql = "select * from test1 where id in (?, ?) or (id in (?, ?, ?,?) and id in (?,?,?))"
 	checkSharding(t, sql, []int{5, 6, 5, 6, 7, 8, 1, 5, 7}, 5, 6, 7)
@@ -239,40 +239,40 @@ func TestConditionVarArgSharding(t *testing.T) {
 	checkSharding(t, sql, []int{10000}, 1)
 
 	sql = "select * from test2 where id between ? and ?"
-	checkSharding(t, sql, []int{10000, 100000}, 1, 2)
+	checkSharding(t, sql, []int{10000, 100000}, 0, 1, 2)
 
 	sql = "select * from test2 where id not between ? and ?"
-	checkSharding(t, sql, []int{10000, 100000}, 0, 2)
+	checkSharding(t, sql, []int{10000, 100000}, 0, 1, 2)
 
 	sql = "select * from test2 where id not between ? and ?"
-	checkSharding(t, sql, []int{10000, 100000}, 0, 2)
+	checkSharding(t, sql, []int{10000, 100000}, 0, 1, 2)
 
 	sql = "select * from test2 where id > ?"
-	checkSharding(t, sql, []int{10000}, 1, 2)
+	checkSharding(t, sql, []int{10000}, 0, 1, 2)
 
 	sql = "select * from test2 where id >= ?"
-	checkSharding(t, sql, []int{10000}, 1, 2)
+	checkSharding(t, sql, []int{10000}, 0, 1, 2)
 
 	sql = "select * from test2 where id <= ?"
-	checkSharding(t, sql, []int{10000}, 0, 1)
+	checkSharding(t, sql, []int{10000}, 0, 1, 2)
 
 	sql = "select * from test2 where id < ?"
-	checkSharding(t, sql, []int{10000}, 0)
+	checkSharding(t, sql, []int{10000}, 0, 1, 2)
 
 	sql = "select * from test2 where  ? < id"
-	checkSharding(t, sql, []int{10000}, 1, 2)
+	checkSharding(t, sql, []int{10000}, 0, 1, 2)
 
 	sql = "select * from test2 where  ? <= id"
-	checkSharding(t, sql, []int{10000}, 1, 2)
+	checkSharding(t, sql, []int{10000}, 0, 1, 2)
 
 	sql = "select * from test2 where  ? > id"
-	checkSharding(t, sql, []int{10000}, 0)
+	checkSharding(t, sql, []int{10000}, 0, 1, 2)
 
 	sql = "select * from test2 where  ? >= id"
-	checkSharding(t, sql, []int{10000}, 0, 1)
+	checkSharding(t, sql, []int{10000}, 0, 1, 2)
 
 	sql = "select * from test2 where id >= ? and id <= ?"
-	checkSharding(t, sql, []int{10000, 100000}, 1, 2)
+	checkSharding(t, sql, []int{10000, 100000}, 0, 1, 2)
 
 	sql = "select * from test2 where (id >= ? and id <= ?) or id < ?"
 	checkSharding(t, sql, []int{10000, 100000, 100}, 0, 1, 2)
@@ -293,7 +293,7 @@ func TestConditionVarArgSharding(t *testing.T) {
 	checkSharding(t, sql, []int{-1}, 0, 1, 2)
 
 	sql = "select * from test2 where id > ? and id < ?"
-	checkSharding(t, sql, []int{-1, 11000}, 0, 1)
+	checkSharding(t, sql, []int{-1, 11000}, 0, 1, 2)
 }
 
 func TestValueSharding(t *testing.T) {
