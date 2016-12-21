@@ -138,7 +138,7 @@ func TestConditionSharding(t *testing.T) {
 	checkSharding(t, sql, nil, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
 
 	sql = "select * from test1 where id not in (5, 6)"
-	checkSharding(t, sql, nil, 0, 1, 2, 3, 4, 7, 8, 9)
+	checkSharding(t, sql, nil, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
 
 	sql = "select * from test1 where id in (5, 6) or (id in (5, 6, 7,8) and id in (1,5,7))"
 	checkSharding(t, sql, nil, 5, 6, 7)
