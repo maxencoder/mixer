@@ -21,7 +21,6 @@ nodes :
   user: root
   password:
   master : 127.0.0.1:3306
-  slave : 127.0.0.1:4306
 - 
   name : node2
   user: root
@@ -79,7 +78,6 @@ func TestConfig(t *testing.T) {
 		Password: "",
 
 		Master: "127.0.0.1:3306",
-		Slave:  "127.0.0.1:4306",
 	}
 
 	if !reflect.DeepEqual(cfg.Nodes[0], testNode) {

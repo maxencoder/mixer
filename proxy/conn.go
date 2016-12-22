@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/maxencoder/log"
+	"github.com/maxencoder/mixer/conf"
 	"github.com/maxencoder/mixer/db"
 	"github.com/maxencoder/mixer/node"
 	"github.com/maxencoder/mixer/sqlparser"
@@ -32,14 +33,14 @@ type Conn struct {
 
 	db string
 
-	schema *Schema
-
 	txConns map[*node.Node]*db.SqlConn
 
 	closed bool
 
 	lastInsertId int64
 	affectedRows int64
+
+	isAdminMode bool
 }
 
 var baseConnID uint32 = 10000
@@ -69,7 +70,7 @@ func (c *Conn) Close() error {
 		return nil
 	}
 
-	if !c.c.Closed() {
+	if c.c != nil && !c.c.Closed() {
 		c.c.Close()
 	}
 
@@ -114,10 +115,9 @@ func (c *Conn) Run() {
 //
 
 func (c *Conn) UseDB(db string) error {
-	if s := c.server.getSchema(db); s == nil {
+	if s := c.server.conf.GetSchema(db); s == nil {
 		return NewDefaultError(ER_BAD_DB_ERROR, db)
 	} else {
-		c.schema = s
 		c.db = db
 	}
 	return nil
@@ -132,7 +132,7 @@ func (c *Conn) HandleFieldList(table string, fieldWildcard string) ([]*Field, er
 		return nil, NewDefaultError(ER_NO_DB_ERROR)
 	}
 
-	nodeName := c.schema.router.GetRule(table).Nodes[0]
+	nodeName := c.schema().Router.DefaultNode
 
 	n := c.server.getNode(nodeName)
 
@@ -142,7 +142,7 @@ func (c *Conn) HandleFieldList(table string, fieldWildcard string) ([]*Field, er
 	}
 	defer co.Close()
 
-	if err = co.UseDB(c.schema.db); err != nil {
+	if err = co.UseDB(c.db); err != nil {
 		return nil, err
 	}
 
@@ -212,27 +212,37 @@ func (c *Conn) handleStmtPrepare(sql string) (int, int, interface{}, error) {
 		return 0, 0, nil, fmt.Errorf(`unsupport prepare sql "%s"`, sql)
 	}
 
-	r := c.schema.router.GetRule(tableName)
+	// XXX: not implemented
+	_ = tableName
+	return 0, 0, nil, NewDefaultError(ER_NO_DB_ERROR)
 
-	n := c.server.getNode(r.Nodes[0])
+	/*
+		r := c.schema.router.GetTableRouter(tableName)
 
-	var params, columns int
-	if co, err := n.GetMasterConn(); err != nil {
-		return 0, 0, nil, fmt.Errorf("prepare error %s", err)
-	} else {
-		defer co.Close()
+		n := c.server.getNode(r.Nodes[0])
 
-		if err = co.UseDB(c.schema.db); err != nil {
-			return 0, 0, nil, fmt.Errorf("parepre error %s", err)
-		}
-
-		if t, err := co.Prepare(sql); err != nil {
-			return 0, 0, nil, fmt.Errorf("parepre error %s", err)
+		var params, columns int
+		if co, err := n.GetMasterConn(); err != nil {
+			return 0, 0, nil, fmt.Errorf("prepare error %s", err)
 		} else {
-			params = t.ParamNum()
-			columns = t.ColumnNum()
-		}
-	}
+			defer co.Close()
 
-	return params, columns, p, nil
+			if err = co.UseDB(c.schema.db); err != nil {
+				return 0, 0, nil, fmt.Errorf("parepre error %s", err)
+			}
+
+			if t, err := co.Prepare(sql); err != nil {
+				return 0, 0, nil, fmt.Errorf("parepre error %s", err)
+			} else {
+				params = t.ParamNum()
+				columns = t.ColumnNum()
+			}
+		}
+
+		return params, columns, p, nil
+	*/
+}
+
+func (c *Conn) schema() *conf.Schema {
+	return c.server.conf.GetSchema(c.db)
 }

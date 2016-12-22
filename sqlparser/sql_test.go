@@ -24,8 +24,10 @@ func TestSimpleSelect(t *testing.T) {
 */
 
 func TestMixer(t *testing.T) {
-	sql := `admin upnode("node1", "master", "127.0.0.1")`
-	testParse(t, sql)
+	var sql string
+
+	//sql = `admin upnode("node1", "master", "127.0.0.1")`
+	//testParse(t, sql)
 
 	sql = "show databases"
 	testParse(t, sql)

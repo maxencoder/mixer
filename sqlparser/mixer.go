@@ -84,26 +84,16 @@ func (*SimpleSelect) iStatement()       {}
 func (*SimpleSelect) iSelectStatement() {}
 func (*SimpleSelect) iInsertRows()      {}
 
-type Admin struct {
-	Name   string
-	Values ValExprs
-}
+type Admin struct{}
 
 func (*Admin) iStatement() {}
 
 func (node *Admin) Format(buf *TrackedBuffer) {
-	buf.Myprintf("admin %s(%v)", node.Name, node.Values)
+	buf.Myprintf("to admin")
 }
 
-// WalkSubtree walks the nodes of the subtree
 func (node *Admin) WalkSubtree(visit Visit) error {
-	if node == nil {
-		return nil
-	}
-	return Walk(
-		visit,
-		node.Values,
-	)
+	return nil
 }
 
 type Show struct {

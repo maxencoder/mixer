@@ -2,63 +2,154 @@ package proxy
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/maxencoder/mixer/node"
+	"github.com/maxencoder/mixer/adminparser"
 	"github.com/maxencoder/mixer/sqlparser"
 	. "github.com/siddontang/go-mysql/mysql"
 )
 
-func (c *Conn) handleAdmin(admin *sqlparser.Admin) (*Result, error) {
-	name := string(admin.Name)
+var astring = adminparser.String
 
+func (c *Conn) handleAdmin(cmd adminparser.Command, sql string) (*Result, error) {
+	switch cmd := cmd.(type) {
+	case *adminparser.AddRoute:
+		return c.addRoute(cmd)
+	case *adminparser.AddDbRouter:
+		return c.addDbRouter(cmd)
+	case *adminparser.AddTableRouter:
+		return c.addTableRouter(cmd)
+	case *adminparser.Show:
+		return c.adminShow(cmd)
+	case *adminparser.FromAdmin:
+		return c.fromAdmin(cmd)
+	default:
+		return nil, fmt.Errorf("unknown command")
+
+		/*
+		   func (*AlterRoute) iCommand()        {}
+		   func (*AlterDbRouter) iCommand()     {}
+		   func (*AlterTableRouter) iCommand()  {}
+		   func (*DeleteRoute) iCommand()       {}
+		   func (*DeleteDbRouter) iCommand()    {}
+		   func (*DeleteTableRouter) iCommand() {}
+		*/
+	}
+
+	return nil, nil
+}
+
+func (c *Conn) handleConfigChange(cmd adminparser.Command, sql string) (*Result, error) {
+	// TODO
+	return nil, nil
+}
+
+func (c *Conn) handleToAdmin(adminparser *sqlparser.Admin) (*Result, error) {
+	c.isAdminMode = true
+
+	return nil, nil
+}
+
+func (c *Conn) addRoute(cmd *adminparser.AddRoute) (*Result, error) {
+	if c.db == "" {
+		return nil, fmt.Errorf("database is not selected; run 'use db' first")
+	}
+
+	schema := c.server.conf.GetSchema(c.db)
+
+	if schema == nil {
+		return nil, fmt.Errorf("router for database %s undefined", c.db)
+	}
+
+	if _, err := schema.Router.NewRoute(cmd.Name, cmd.Route); err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
+func (c *Conn) addDbRouter(cmd *adminparser.AddDbRouter) (*Result, error) {
+	if c.server.conf.GetSchema(cmd.Db) != nil {
+		return nil, fmt.Errorf("router for %s is already defined", cmd.Db)
+	}
+
+	if err := c.server.conf.NewSchema(cmd.Db, string(cmd.Default)); err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
+func (c *Conn) addTableRouter(cmd *adminparser.AddTableRouter) (*Result, error) {
+	schema := c.server.conf.GetSchema(cmd.Db)
+
+	if schema == nil {
+		return nil, fmt.Errorf("router for database %s undefined", cmd.Db)
+	}
+
+	r := schema.Router
+
+	if tr, _ := r.GetTableRouter(cmd.Table); tr != nil {
+		return nil, fmt.Errorf("table router %s already exists", cmd.Table)
+	}
+
+	if route, _ := r.GetRoute(string(cmd.Route)); route == nil {
+		return nil, fmt.Errorf("route %s does not exist", cmd.Route)
+	}
+
+	_, err := r.NewTableRouter(cmd.Db, cmd.Table, cmd.Key, string(cmd.Route))
+
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
+func (c *Conn) adminShow(cmd *adminparser.Show) (*Result, error) {
 	var err error
+	var r *Resultset
 
-	switch strings.ToLower(name) {
-	case "upnode":
-		err = c.adminUpNodeServer(admin.Values)
-	case "downnode":
-		err = c.adminDownNodeServer(admin.Values)
-	default:
-		return nil, fmt.Errorf("admin %s not supported now", name)
+	r, err = c.adminShowRoutes(cmd)
+
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, err
+	return &Result{Status: c.status, Resultset: r}, nil
 }
 
-func (c *Conn) adminUpNodeServer(values sqlparser.ValExprs) error {
-	if len(values) != 3 {
-		return fmt.Errorf("upnode needs 3 args, not %d", len(values))
-	}
+func (c *Conn) fromAdmin(cmd *adminparser.FromAdmin) (*Result, error) {
+	c.isAdminMode = false
 
-	nodeName := nstring(values[0])
-	sType := strings.ToLower(nstring(values[1]))
-	addr := strings.ToLower(nstring(values[2]))
-
-	switch sType {
-	case node.Master:
-		return c.server.UpMaster(nodeName, addr)
-	case node.Slave:
-		return c.server.UpSlave(nodeName, addr)
-	default:
-		return fmt.Errorf("invalid server type %s", sType)
-	}
+	return nil, nil
 }
 
-func (c *Conn) adminDownNodeServer(values sqlparser.ValExprs) error {
-	if len(values) != 2 {
-		return fmt.Errorf("upnode needs 2 args, not %d", len(values))
+func (c *Conn) adminShowRoutes(cmd *adminparser.Show) (*Resultset, error) {
+	var names []string = []string{"Command"}
+	var rows [][]string
+
+	for _, db := range c.server.conf.Schemas() {
+		schema := c.server.conf.GetSchema(db)
+
+		cmds := schema.Router.ToAstNodes()
+
+		for _, cmd := range cmds {
+			rows = append(rows, []string{astring(cmd)})
+		}
 	}
 
-	nodeName := nstring(values[0])
-	sType := strings.ToLower(nstring(values[1]))
+	return c.buildResultset(names, strings2_to_interfaces2(rows, 1))
+}
 
-	switch sType {
-	case node.Master:
-		return c.server.DownMaster(nodeName)
-	case node.Slave:
-		return c.server.DownSlave(nodeName)
-	default:
-		return fmt.Errorf("invalid server type %s", sType)
+func strings2_to_interfaces2(rows [][]string, nrColumns int) [][]interface{} {
+	var values [][]interface{} = make([][]interface{}, len(rows))
+
+	for i := range rows {
+		values[i] = make([]interface{}, nrColumns)
+		for j := range rows[i] {
+			values[i][j] = rows[i][j]
+		}
 	}
+
+	return values
 }

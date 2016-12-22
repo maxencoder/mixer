@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -28,7 +29,8 @@ nodes :
     user: root
     password:
     master : 127.0.0.1:3306
-    slave : 
+    slaves : 
+      - 127.0.0.1:3306
 - 
     name : node2
     down_after_noalive : 300
@@ -36,7 +38,8 @@ nodes :
     user: root
     password:
     master : 127.0.0.1:3307
-
+    slaves : 
+      - 127.0.0.1:3307
 - 
     name : node3 
     down_after_noalive : 300
@@ -44,27 +47,15 @@ nodes :
     user: root
     password:
     master : 127.0.0.1:3308
-
-schemas :
--
-    db : mixer 
-    nodes: [node1, node2, node3]
-    rules:
-        default: node1 
-        shard:
-            -   
-                table: mixer_test_shard_hash
-                key: id
-                nodes: [node2, node3]
-                type: hash
-
-            -   
-                table: mixer_test_shard_range
-                key: id
-                nodes: [node2, node3]
-                range: -10000-
-                type: range
+    slaves : 
+      - 127.0.0.1:3308
 `)
+
+var adminConf = `
+	to admin;
+
+	add database router mixer (default node1);
+`
 
 func newTestServer(t *testing.T) *Server {
 	f := func() {
@@ -78,6 +69,7 @@ func newTestServer(t *testing.T) *Server {
 		}
 
 		testServer, err = NewServer(cfg)
+
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -85,11 +77,41 @@ func newTestServer(t *testing.T) *Server {
 		go testServer.Run()
 
 		time.Sleep(1 * time.Second)
+
+		testDB, err := db.Open("127.0.0.1:4000", "root", "", "")
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		c, err := testDB.GetConn()
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, s := range strings.Split(adminConf, ";") {
+			s = strings.TrimSpace(s)
+
+			if s == "" {
+				continue
+			}
+
+			_, err = c.Execute(s)
+
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 
 	testServerOnce.Do(f)
 
 	return testServer
+}
+
+func Test1(t *testing.T) {
+	newTestServer(t)
 }
 
 func newTestDB(t *testing.T) *db.DB {

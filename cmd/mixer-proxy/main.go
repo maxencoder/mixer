@@ -8,10 +8,10 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/maxencoder/log"
 	"github.com/maxencoder/mixer/config"
 	"github.com/maxencoder/mixer/node"
 	"github.com/maxencoder/mixer/proxy"
-	"github.com/maxencoder/log"
 )
 
 var configFile *string = flag.String("config", "/etc/mixer.conf", "mixer proxy config file")
@@ -44,8 +44,8 @@ func main() {
 		return
 	}
 
-	var svr *proxy.Server
-	svr, err = proxy.NewServer(cfg)
+	svr, err := proxy.NewServer(cfg)
+
 	if err != nil {
 		log.Error(err.Error())
 		return
