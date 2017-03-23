@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/maxencoder/mixer/sqltypes"
-	"github.com/youtube/vitess/go/cistring"
 )
 
 // Instructions for creating new types: If a type
@@ -1670,11 +1669,11 @@ func (node OnDup) WalkSubtree(visit Visit) error {
 
 // ColIdent is a case insensitive SQL identifier. It will be escaped with
 // backquotes if it matches a keyword.
-type ColIdent cistring.CIString
+type ColIdent sqltypes.CIString
 
 // NewColIdent makes a new ColIdent.
 func NewColIdent(str string) ColIdent {
-	return ColIdent(cistring.New(str))
+	return ColIdent(sqltypes.New(str))
 }
 
 // Format formats the node.
@@ -1693,28 +1692,28 @@ func (node ColIdent) WalkSubtree(visit Visit) error {
 
 // Original returns the case-preserved column name.
 func (node ColIdent) Original() string {
-	return cistring.CIString(node).Original()
+	return sqltypes.CIString(node).Original()
 }
 
 func (node ColIdent) String() string {
-	return cistring.CIString(node).String()
+	return sqltypes.CIString(node).String()
 }
 
 // Lowered returns a lower-cased column name.
 // This function should generally be used only for optimizing
 // comparisons.
 func (node ColIdent) Lowered() string {
-	return cistring.CIString(node).Lowered()
+	return sqltypes.CIString(node).Lowered()
 }
 
 // Equal performs a case-insensitive compare.
 func (node ColIdent) Equal(in ColIdent) bool {
-	return cistring.CIString(node).Equal(cistring.CIString(in))
+	return sqltypes.CIString(node).Equal(sqltypes.CIString(in))
 }
 
 // EqualString performs a case-insensitive compare with str.
 func (node ColIdent) EqualString(str string) bool {
-	return cistring.CIString(node).EqualString(str)
+	return sqltypes.CIString(node).EqualString(str)
 }
 
 // TableIdent is a case sensitive SQL identifier. It will be escaped with
